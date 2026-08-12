@@ -1,19 +1,14 @@
 "use client";
 
-import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 
 type Mode = "id" | "pfp" | "squad";
+type IdDesign = "coastal" | "horizon";
 type Photo = { image: HTMLImageElement; name: string; focusX: number; focusY: number };
 
-const TITLES = [
-  "Midnight Shipper",
-  "Pixel Pathfinder",
-  "API Alchemist",
-  "Bug Whisperer",
-  "Zero-to-One Builder",
-  "Prototype Pirate",
-  "Signal Architect",
-  "Weekend Worldbuilder",
+const ID_DESIGNS: { id: IdDesign; label: string; blurb: string }[] = [
+  { id: "coastal", label: "Coastal Classic", blurb: "Cream badge · hibiscus corners · stamp seal" },
+  { id: "horizon", label: "Goa Horizon", blurb: "Sunset header · open cream layout · clear type" },
 ];
 
 const COLORS = {
@@ -24,14 +19,17 @@ const COLORS = {
   lime: "#fee101",
   cyan: "#fffbe8",
   white: "#ffffff",
+  deep: "#064b29",
+  sand: "#fff6c8",
+  sea: "#0e7a44",
 };
 
 const DISPLAY_FONT = '"Imbue", Georgia, serif';
 const MONO_FONT = '"Victor Mono", monospace';
-
-function hash(value: string) {
-  return [...value].reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) >>> 0, 7);
-}
+const ID_W = 1600;
+const ID_H = 1000;
+const SQ = 1080;
+const SQUAD_SIZE = 3;
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const radius = Math.min(r, w / 2, h / 2);
@@ -66,10 +64,11 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, 
   return size;
 }
 
-function drawStamp(ctx: CanvasRenderingContext2D, x: number, y: number, rotation = -0.08) {
+function drawStamp(ctx: CanvasRenderingContext2D, x: number, y: number, rotation = -0.08, scale = 1) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(rotation);
+  ctx.scale(scale, scale);
   ctx.fillStyle = COLORS.lime;
   roundRect(ctx, -130, -52, 260, 104, 18);
   ctx.fill();
@@ -102,8 +101,400 @@ function drawNoPhoto(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
   }
   ctx.fillStyle = COLORS.orange;
   ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   ctx.font = `700 28px ${MONO_FONT}`;
   ctx.fillText("YOUR PHOTO LANDS HERE", x + w / 2, y + h / 2);
+  ctx.textBaseline = "alphabetic";
+}
+
+function drawPetal(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  length: number,
+  width: number,
+  rotation: number,
+  color: string,
+) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(width * 0.55, -length * 0.25, width * 0.55, -length * 0.75, 0, -length);
+  ctx.bezierCurveTo(-width * 0.55, -length * 0.75, -width * 0.55, -length * 0.25, 0, 0);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawHibiscus(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string, accent = COLORS.orange) {
+  const petals = 5;
+  for (let i = 0; i < petals; i++) {
+    drawPetal(ctx, x, y, size, size * 0.55, (i / petals) * Math.PI * 2, color);
+  }
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(x, y, size * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = Math.max(1.5, size * 0.04);
+  ctx.beginPath();
+  ctx.arc(x, y, size * 0.18, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawLeaf(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number, color = COLORS.ink) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(size * 0.45, -size * 0.2, size * 0.55, -size * 0.7, 0, -size);
+  ctx.bezierCurveTo(-size * 0.55, -size * 0.7, -size * 0.45, -size * 0.2, 0, 0);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,251,232,.35)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 0.12);
+  ctx.quadraticCurveTo(size * 0.08, -size * 0.5, 0, -size * 0.92);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawPalmFrond(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, rotation: number, color = COLORS.ink) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.scale(scale, scale);
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(18, -70, 8, -160);
+  ctx.stroke();
+  for (let i = 0; i < 9; i++) {
+    const t = i / 8;
+    const px = 4 + t * 6;
+    const py = -18 - t * 140;
+    const spread = 42 - t * 18;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.quadraticCurveTo(px + spread, py - 10, px + spread * 1.15, py + 8);
+    ctx.quadraticCurveTo(px + spread * 0.4, py + 4, px, py + 6);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.quadraticCurveTo(px - spread, py - 10, px - spread * 1.15, py + 8);
+    ctx.quadraticCurveTo(px - spread * 0.4, py + 4, px, py + 6);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawFloralCorner(ctx: CanvasRenderingContext2D, x: number, y: number, flipX = 1, flipY = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(flipX, flipY);
+  drawLeaf(ctx, 18, 22, 58, -0.55, COLORS.sea);
+  drawLeaf(ctx, 42, 8, 48, 0.35, COLORS.ink);
+  drawHibiscus(ctx, 58, 48, 34, COLORS.pink);
+  drawHibiscus(ctx, 22, 62, 22, COLORS.orange, COLORS.pink);
+  ctx.restore();
+}
+
+function formatHandle(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+}
+
+function drawCoastalId(
+  ctx: CanvasRenderingContext2D,
+  photo: Photo | null | undefined,
+  name: string,
+  stack: string,
+  teamName: string,
+  socialHandle: string,
+) {
+  ctx.fillStyle = COLORS.cream;
+  ctx.fillRect(0, 0, ID_W, ID_H);
+
+  // Soft floral wash
+  for (let i = 0; i < 7; i++) {
+    const x = 120 + i * 220;
+    drawLeaf(ctx, x, 180 + (i % 2) * 40, 70, -0.4 + i * 0.08, "rgba(11,104,57,.06)");
+    drawHibiscus(ctx, x + 80, ID_H - 90 - (i % 3) * 18, 28 + (i % 2) * 8, "rgba(255,0,128,.07)", "rgba(254,225,1,.08)");
+  }
+
+  drawFloralCorner(ctx, 18, 150, 1, 1);
+  drawFloralCorner(ctx, ID_W - 18, 150, -1, 1);
+  drawFloralCorner(ctx, 18, ID_H - 18, 1, -1);
+  drawFloralCorner(ctx, ID_W - 18, ID_H - 18, -1, -1);
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.fillRect(0, 0, ID_W, 118);
+  ctx.fillStyle = COLORS.orange;
+  ctx.fillRect(0, 118, 980, 18);
+  ctx.fillStyle = COLORS.pink;
+  ctx.fillRect(980, 118, 620, 18);
+
+  ctx.fillStyle = COLORS.white;
+  ctx.textAlign = "left";
+  ctx.font = `800 58px ${DISPLAY_FONT}`;
+  ctx.fillText("HACKERS HOUSE", 56, 78);
+  ctx.fillStyle = COLORS.lime;
+  ctx.textAlign = "right";
+  ctx.font = `800 42px ${DISPLAY_FONT}`;
+  ctx.fillText("GOA / 2026", ID_W - 56, 74);
+  ctx.textAlign = "left";
+
+  const photoX = 56;
+  const photoY = 178;
+  const photoW = 620;
+  const photoH = 620;
+  ctx.save();
+  roundRect(ctx, photoX, photoY, photoW, photoH, 28);
+  ctx.clip();
+  if (photo) drawCover(ctx, photo, photoX, photoY, photoW, photoH);
+  else drawNoPhoto(ctx, photoX, photoY, photoW, photoH);
+  ctx.restore();
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 8;
+  roundRect(ctx, photoX, photoY, photoW, photoH, 28);
+  ctx.stroke();
+
+  const infoX = 726;
+  ctx.fillStyle = COLORS.pink;
+  roundRect(ctx, infoX, 178, 820, 72, 20);
+  ctx.fill();
+  ctx.fillStyle = COLORS.white;
+  ctx.font = `700 30px ${MONO_FONT}`;
+  ctx.fillText("BUILDER ID  /  026", infoX + 28, 224);
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `700 20px ${MONO_FONT}`;
+  ctx.fillText("BUILDER", infoX + 12, 310);
+  ctx.fillStyle = COLORS.orange;
+  fitText(ctx, name || "Your Name", 780, 70);
+  ctx.fillText(name || "Your Name", infoX + 12, 372);
+  ctx.fillStyle = COLORS.ink;
+  ctx.fillRect(infoX + 12, 396, 760, 5);
+
+  ctx.font = `700 20px ${MONO_FONT}`;
+  ctx.fillText("STACK / ROLE", infoX + 12, 460);
+  fitText(ctx, stack || "Design + Code", 760, 44, 800);
+  ctx.fillText(stack || "Design + Code", infoX + 12, 512);
+
+  ctx.font = `700 20px ${MONO_FONT}`;
+  ctx.fillText("TEAM NAME", infoX + 12, 580);
+  ctx.fillStyle = COLORS.sand;
+  roundRect(ctx, infoX, 600, 520, socialHandle ? 86 : 110, 18);
+  ctx.fill();
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 3;
+  roundRect(ctx, infoX, 600, 520, socialHandle ? 86 : 110, 18);
+  ctx.stroke();
+  ctx.fillStyle = COLORS.ink;
+  fitText(ctx, teamName || "Your Team", 460, socialHandle ? 38 : 44);
+  ctx.fillText(teamName || "Your Team", infoX + 24, socialHandle ? 656 : 668);
+
+  if (socialHandle) {
+    ctx.fillStyle = COLORS.ink;
+    ctx.font = `700 18px ${MONO_FONT}`;
+    ctx.fillText("SOCIAL", infoX + 12, 730);
+    ctx.fillStyle = COLORS.pink;
+    fitText(ctx, socialHandle, 500, 36, 800);
+    ctx.fillText(socialHandle, infoX + 12, 772);
+  }
+
+  drawStamp(ctx, 1420, 660, -0.05, 0.92);
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `800 34px ${DISPLAY_FONT}`;
+  ctx.fillText("BUILDERS, BEACHES, BIG IDEAS.", 56, 870);
+  ctx.fillStyle = COLORS.orange;
+  ctx.fillRect(56, 892, 1488, 12);
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `700 18px ${MONO_FONT}`;
+  ctx.fillText("#FRAMEINGOA", 56, 948);
+  ctx.textAlign = "right";
+  ctx.fillText("VALID FOR ONE UNFORGETTABLE BUILD", ID_W - 56, 948);
+}
+
+function drawHorizonId(
+  ctx: CanvasRenderingContext2D,
+  photo: Photo | null | undefined,
+  name: string,
+  stack: string,
+  teamName: string,
+  socialHandle: string,
+) {
+  // Clean cream canvas — readable first, scenery second
+  ctx.fillStyle = COLORS.cream;
+  ctx.fillRect(0, 0, ID_W, ID_H);
+
+  // Horizon header band
+  const headerH = 168;
+  const sky = ctx.createLinearGradient(0, 0, 0, headerH);
+  sky.addColorStop(0, "#053821");
+  sky.addColorStop(0.55, COLORS.deep);
+  sky.addColorStop(1, COLORS.sea);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, ID_W, headerH);
+
+  // Soft sun + glow (kept small so it never fights the title)
+  ctx.fillStyle = "rgba(254,225,1,.22)";
+  ctx.beginPath();
+  ctx.arc(ID_W - 210, 78, 70, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.orange;
+  ctx.beginPath();
+  ctx.arc(ID_W - 210, 78, 42, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Gentle sea line under the sky
+  ctx.fillStyle = "#0e7a44";
+  ctx.fillRect(0, headerH - 34, ID_W, 34);
+  ctx.strokeStyle = "rgba(255,251,232,.35)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= ID_W; x += 40) {
+    const y = headerH - 18 + Math.sin(x * 0.04) * 5;
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Cream wave edge into the body
+  ctx.fillStyle = COLORS.cream;
+  ctx.beginPath();
+  ctx.moveTo(0, headerH - 8);
+  for (let x = 0; x <= ID_W; x += 50) {
+    ctx.quadraticCurveTo(x + 25, headerH + (x / 50 % 2 === 0 ? 10 : -6), x + 50, headerH - 8);
+  }
+  ctx.lineTo(ID_W, headerH + 24);
+  ctx.lineTo(0, headerH + 24);
+  ctx.closePath();
+  ctx.fill();
+
+  // Title on the dark band — high contrast
+  ctx.textAlign = "left";
+  ctx.fillStyle = COLORS.white;
+  ctx.font = `800 52px ${DISPLAY_FONT}`;
+  ctx.fillText("HACKERS HOUSE", 56, 78);
+  ctx.fillStyle = COLORS.orange;
+  ctx.font = `700 20px ${MONO_FONT}`;
+  ctx.fillText("BUILDERS · BEACHES · BIG IDEAS", 58, 118);
+  ctx.textAlign = "right";
+  ctx.fillStyle = COLORS.cream;
+  ctx.font = `800 36px ${DISPLAY_FONT}`;
+  ctx.fillText("GOA / 2026", ID_W - 56, 88);
+
+  // Quiet corner florals — low opacity, away from text
+  drawHibiscus(ctx, 70, ID_H - 70, 26, "rgba(255,0,128,.18)", "rgba(254,225,1,.2)");
+  drawHibiscus(ctx, ID_W - 70, ID_H - 78, 30, "rgba(254,225,1,.2)", "rgba(255,0,128,.18)");
+  drawLeaf(ctx, 120, ID_H - 40, 40, -0.9, "rgba(11,104,57,.12)");
+  drawLeaf(ctx, ID_W - 120, ID_H - 44, 38, 0.85, "rgba(11,104,57,.12)");
+  drawPalmFrond(ctx, ID_W - 40, 210, 0.55, 0.55, "rgba(11,104,57,.14)");
+
+  // Photo — left column
+  const px = 56;
+  const py = 214;
+  const pw = 560;
+  const ph = 620;
+  ctx.fillStyle = COLORS.white;
+  roundRect(ctx, px - 8, py - 8, pw + 16, ph + 16, 26);
+  ctx.fill();
+  ctx.save();
+  roundRect(ctx, px, py, pw, ph, 20);
+  ctx.clip();
+  if (photo) drawCover(ctx, photo, px, py, pw, ph);
+  else drawNoPhoto(ctx, px, py, pw, ph);
+  ctx.restore();
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 7;
+  roundRect(ctx, px, py, pw, ph, 20);
+  ctx.stroke();
+  ctx.strokeStyle = COLORS.orange;
+  ctx.lineWidth = 4;
+  roundRect(ctx, px + 14, py + 14, pw - 28, ph - 28, 14);
+  ctx.stroke();
+
+  // Info — right column with airy spacing
+  const ix = 680;
+  const contentW = 860;
+
+  ctx.fillStyle = COLORS.pink;
+  roundRect(ctx, ix, 214, 300, 56, 16);
+  ctx.fill();
+  ctx.fillStyle = COLORS.white;
+  ctx.textAlign = "left";
+  ctx.font = `700 24px ${MONO_FONT}`;
+  ctx.fillText("BUILDER ID", ix + 28, 250);
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `700 18px ${MONO_FONT}`;
+  ctx.fillText("BUILDER", ix, 322);
+  ctx.fillStyle = COLORS.deep;
+  fitText(ctx, name || "Your Name", contentW - 40, 68);
+  ctx.fillText(name || "Your Name", ix, 386);
+  ctx.fillStyle = COLORS.orange;
+  ctx.fillRect(ix, 408, Math.min(420, contentW * 0.55), 8);
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `700 18px ${MONO_FONT}`;
+  ctx.fillText("STACK / ROLE", ix, 470);
+  ctx.fillStyle = COLORS.deep;
+  fitText(ctx, stack || "Design + Code", contentW - 40, 44, 800);
+  ctx.fillText(stack || "Design + Code", ix, 522);
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `700 18px ${MONO_FONT}`;
+  ctx.fillText("TEAM NAME", ix, 586);
+  ctx.fillStyle = "#fff4b8";
+  roundRect(ctx, ix, 606, 520, 78, 16);
+  ctx.fill();
+  ctx.strokeStyle = COLORS.ink;
+  ctx.lineWidth = 3;
+  roundRect(ctx, ix, 606, 520, 78, 16);
+  ctx.stroke();
+  ctx.fillStyle = COLORS.deep;
+  fitText(ctx, teamName || "Your Team", 470, 40);
+  ctx.fillText(teamName || "Your Team", ix + 22, 656);
+
+  if (socialHandle) {
+    ctx.fillStyle = COLORS.ink;
+    ctx.font = `700 18px ${MONO_FONT}`;
+    ctx.fillText("SOCIAL", ix, 732);
+    ctx.fillStyle = COLORS.pink;
+    fitText(ctx, socialHandle, contentW - 80, 36, 800);
+    ctx.fillText(socialHandle, ix, 776);
+  } else {
+    ctx.fillStyle = "rgba(11,104,57,.55)";
+    ctx.font = `700 18px ${MONO_FONT}`;
+    ctx.fillText("SHIP • SHARE • REPEAT", ix, 732);
+  }
+
+  // Compact stamp — clear of primary text
+  drawStamp(ctx, 1410, 760, -0.04, 0.78);
+
+  // Footer strip
+  ctx.fillStyle = COLORS.ink;
+  ctx.fillRect(0, 900, ID_W, 100);
+  ctx.fillStyle = COLORS.orange;
+  ctx.fillRect(0, 900, ID_W, 8);
+  ctx.fillStyle = COLORS.cream;
+  ctx.font = `800 30px ${DISPLAY_FONT}`;
+  ctx.textAlign = "left";
+  ctx.fillText("GOA HORIZON  ·  HH GOA '26", 56, 952);
+  ctx.font = `700 18px ${MONO_FONT}`;
+  ctx.fillText("#FRAMEINGOA", 56, 984);
+  ctx.textAlign = "right";
+  ctx.fillText("VALID FOR ONE UNFORGETTABLE BUILD", ID_W - 56, 968);
 }
 
 export default function Home() {
@@ -111,20 +502,20 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadSlotRef = useRef<number | null>(null);
   const [mode, setMode] = useState<Mode>("id");
+  const [idDesign, setIdDesign] = useState<IdDesign>("coastal");
   const [photos, setPhotos] = useState<Array<Photo | null>>([]);
   const [name, setName] = useState("Your Name");
   const [stack, setStack] = useState("Design + Code");
   const [teamName, setTeamName] = useState("The Ship Squad");
-  const [memberNames, setMemberNames] = useState("Builder One, Builder Two, Builder Three, Builder Four");
+  const [socialHandle, setSocialHandle] = useState("");
+  const [memberNames, setMemberNames] = useState("Builder One, Builder Two, Builder Three");
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState("");
   const [fontsReady, setFontsReady] = useState(false);
 
-  const builderTitle = useMemo(() => {
-    const seed = `${name.trim()}-${stack.trim()}`;
-    return TITLES[hash(seed) % TITLES.length];
-  }, [name, stack]);
+  const outputSize = mode === "id" ? `${ID_W} × ${ID_H}` : `${SQ} × ${SQ}`;
+  const displayHandle = formatHandle(socialHandle);
 
   useEffect(() => {
     document.fonts.ready.then(() => setFontsReady(true));
@@ -136,19 +527,21 @@ export default function Home() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    canvas.width = 1080;
-    canvas.height = 1080;
-    ctx.clearRect(0, 0, 1080, 1080);
+    const width = mode === "id" ? ID_W : SQ;
+    const height = mode === "id" ? ID_H : SQ;
+    canvas.width = width;
+    canvas.height = height;
+    ctx.clearRect(0, 0, width, height);
     ctx.textBaseline = "alphabetic";
 
     if (mode === "pfp") {
-      if (photos[0]) drawCover(ctx, photos[0], 0, 0, 1080, 1080);
-      else drawNoPhoto(ctx, 0, 0, 1080, 1080);
-      const shade = ctx.createLinearGradient(0, 580, 0, 1080);
+      if (photos[0]) drawCover(ctx, photos[0], 0, 0, SQ, SQ);
+      else drawNoPhoto(ctx, 0, 0, SQ, SQ);
+      const shade = ctx.createLinearGradient(0, 580, 0, SQ);
       shade.addColorStop(0, "rgba(11,104,57,0)");
       shade.addColorStop(1, "rgba(11,104,57,.96)");
       ctx.fillStyle = shade;
-      ctx.fillRect(0, 520, 1080, 560);
+      ctx.fillRect(0, 520, SQ, 560);
       ctx.strokeStyle = COLORS.orange;
       ctx.lineWidth = 42;
       ctx.strokeRect(21, 21, 1038, 1038);
@@ -161,153 +554,106 @@ export default function Home() {
       drawStamp(ctx, 855, 155, 0.08);
       ctx.textAlign = "left";
       ctx.fillStyle = COLORS.white;
-      fitText(ctx, name || "Your Name", 870, 90);
-      ctx.fillText((name || "Your Name").toUpperCase(), 74, 894);
-      ctx.fillStyle = COLORS.cyan;
-      ctx.font = `700 34px ${MONO_FONT}`;
-      ctx.fillText(`${builderTitle.toUpperCase()}  /  #FRAMEINGOA`, 78, 953);
+      fitText(ctx, name || "Your Name", 870, 78);
+      ctx.fillText((name || "Your Name").toUpperCase(), 74, 868);
       ctx.fillStyle = COLORS.orange;
-      ctx.fillRect(78, 984, 376, 14);
+      let stackSize = 32;
+      const stackLabel = (stack || "Design + Code").toUpperCase();
+      do {
+        ctx.font = `700 ${stackSize}px ${MONO_FONT}`;
+        if (ctx.measureText(stackLabel).width <= 920) break;
+        stackSize -= 2;
+      } while (stackSize > 18);
+      ctx.fillText(stackLabel, 78, 918);
+      ctx.fillStyle = COLORS.cyan;
+      let pfpMetaSize = 24;
+      const pfpMeta = displayHandle
+        ? `${(teamName || "Your Team").toUpperCase()}  ·  ${displayHandle}  ·  #FRAMEINGOA`
+        : `${(teamName || "Your Team").toUpperCase()}  ·  #FRAMEINGOA`;
+      do {
+        ctx.font = `700 ${pfpMetaSize}px ${MONO_FONT}`;
+        if (ctx.measureText(pfpMeta).width <= 920) break;
+        pfpMetaSize -= 2;
+      } while (pfpMetaSize > 14);
+      ctx.fillText(pfpMeta, 78, 968);
+      ctx.fillStyle = COLORS.orange;
+      ctx.fillRect(78, 990, 376, 12);
     }
 
     if (mode === "id") {
-      ctx.fillStyle = COLORS.cream;
-      ctx.fillRect(0, 0, 1080, 1080);
-      ctx.fillStyle = COLORS.ink;
-      ctx.fillRect(0, 0, 1080, 138);
-      ctx.fillStyle = COLORS.orange;
-      ctx.fillRect(0, 138, 664, 24);
-      ctx.fillStyle = COLORS.pink;
-      ctx.fillRect(664, 138, 416, 24);
-      ctx.fillStyle = COLORS.white;
-      ctx.font = `800 61px ${DISPLAY_FONT}`;
-      ctx.fillText("HACKERS HOUSE", 58, 88);
-      ctx.fillStyle = COLORS.lime;
-      ctx.textAlign = "right";
-      ctx.font = `800 44px ${DISPLAY_FONT}`;
-      ctx.fillText("GOA / 2026", 1024, 84);
-      ctx.textAlign = "left";
-
-      ctx.save();
-      roundRect(ctx, 58, 210, 520, 688, 36);
-      ctx.clip();
-      if (photos[0]) drawCover(ctx, photos[0], 58, 210, 520, 688);
-      else drawNoPhoto(ctx, 58, 210, 520, 688);
-      ctx.restore();
-      ctx.strokeStyle = COLORS.ink;
-      ctx.lineWidth = 8;
-      roundRect(ctx, 58, 210, 520, 688, 36);
-      ctx.stroke();
-
-      ctx.fillStyle = COLORS.pink;
-      roundRect(ctx, 604, 218, 420, 82, 22);
-      ctx.fill();
-      ctx.fillStyle = COLORS.white;
-      ctx.font = `700 31px ${MONO_FONT}`;
-      ctx.fillText("BUILDER ID  /  026", 630, 270);
-
-      ctx.fillStyle = COLORS.ink;
-      ctx.font = `700 23px ${MONO_FONT}`;
-      ctx.fillText("BUILDER", 616, 373);
-      ctx.fillStyle = COLORS.orange;
-      fitText(ctx, name || "Your Name", 396, 64);
-      ctx.fillText(name || "Your Name", 616, 435);
-      ctx.fillStyle = COLORS.ink;
-      ctx.fillRect(616, 462, 390, 5);
-
-      ctx.font = `700 23px ${MONO_FONT}`;
-      ctx.fillText("STACK / ROLE", 616, 526);
-      ctx.fillStyle = COLORS.ink;
-      fitText(ctx, stack || "Design + Code", 392, 42, 800);
-      ctx.fillText(stack || "Design + Code", 616, 578);
-
-      ctx.fillStyle = COLORS.ink;
-      ctx.font = `700 23px ${MONO_FONT}`;
-      ctx.fillText("BUILDER CLASS", 616, 661);
-      ctx.fillStyle = COLORS.cyan;
-      roundRect(ctx, 604, 684, 420, 125, 22);
-      ctx.fill();
-      ctx.fillStyle = COLORS.ink;
-      fitText(ctx, builderTitle, 372, 42);
-      ctx.fillText(builderTitle, 630, 756);
-
-      drawStamp(ctx, 806, 877, -0.04);
-      ctx.fillStyle = COLORS.ink;
-      ctx.font = `800 38px ${DISPLAY_FONT}`;
-      ctx.fillText("BUILDERS, BEACHES, BIG IDEAS.", 58, 978);
-      ctx.fillStyle = COLORS.orange;
-      ctx.fillRect(58, 1004, 950, 15);
-      ctx.fillStyle = COLORS.ink;
-      ctx.font = `700 18px ${MONO_FONT}`;
-      ctx.fillText("#FRAMEINGOA", 58, 1050);
-      ctx.textAlign = "right";
-      ctx.fillText("VALID FOR ONE UNFORGETTABLE BUILD", 1022, 1050);
+      const photo = photos[0];
+      if (idDesign === "coastal") drawCoastalId(ctx, photo, name, stack, teamName, displayHandle);
+      else drawHorizonId(ctx, photo, name, stack, teamName, displayHandle);
     }
 
     if (mode === "squad") {
       ctx.fillStyle = COLORS.ink;
-      ctx.fillRect(0, 0, 1080, 1080);
+      ctx.fillRect(0, 0, SQ, SQ);
       ctx.fillStyle = COLORS.orange;
-      ctx.fillRect(0, 0, 1080, 168);
+      ctx.fillRect(0, 0, SQ, 150);
       ctx.fillStyle = COLORS.lime;
       ctx.beginPath();
-      ctx.moveTo(720, 0);
-      ctx.lineTo(1080, 0);
-      ctx.lineTo(1080, 168);
-      ctx.lineTo(820, 168);
+      ctx.moveTo(700, 0);
+      ctx.lineTo(SQ, 0);
+      ctx.lineTo(SQ, 150);
+      ctx.lineTo(800, 150);
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = COLORS.ink;
-      ctx.font = `700 27px ${MONO_FONT}`;
-      ctx.fillText("HH GOA / 2026", 56, 52);
+      ctx.font = `700 24px ${MONO_FONT}`;
+      ctx.fillText("HH GOA / 2026", 48, 46);
       ctx.fillStyle = COLORS.white;
-      fitText(ctx, teamName || "The Ship Squad", 700, 68);
-      ctx.fillText((teamName || "The Ship Squad").toUpperCase(), 54, 125);
+      fitText(ctx, teamName || "The Ship Squad", 680, 58);
+      ctx.fillText((teamName || "The Ship Squad").toUpperCase(), 46, 110);
       ctx.fillStyle = COLORS.ink;
       ctx.textAlign = "right";
-      ctx.font = `700 26px ${MONO_FONT}`;
-      ctx.fillText("4 MINDS. 1 FRAME.", 1032, 94);
+      ctx.font = `700 24px ${MONO_FONT}`;
+      ctx.fillText("3 MINDS. 1 FRAME.", 1034, 86);
       ctx.textAlign = "left";
 
-      const displayPhotos = photos.slice(0, 4);
+      // Three equal portrait panels — best fit for a 3-person squad on a square frame.
+      const displayPhotos = photos.slice(0, SQUAD_SIZE);
       const names = memberNames.split(",").map((item) => item.trim()).filter(Boolean);
-      const gap = 14;
-      const tileW = 479;
-      const tileH = 372;
-      for (let i = 0; i < 4; i++) {
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        const x = 54 + col * (tileW + gap);
-        const y = 200 + row * (tileH + gap);
+      const gap = 16;
+      const sidePad = 42;
+      const tileW = Math.floor((SQ - sidePad * 2 - gap * (SQUAD_SIZE - 1)) / SQUAD_SIZE);
+      const tileH = 740;
+      const tileY = 178;
+      const accents = [COLORS.pink, COLORS.orange, COLORS.cyan];
+      for (let i = 0; i < SQUAD_SIZE; i++) {
+        const x = sidePad + i * (tileW + gap);
+        const y = tileY;
         ctx.save();
-        roundRect(ctx, x, y, tileW, tileH, 24);
+        roundRect(ctx, x, y, tileW, tileH, 22);
         ctx.clip();
         const photo = displayPhotos[i];
         if (photo) drawCover(ctx, photo, x, y, tileW, tileH);
         else drawNoPhoto(ctx, x, y, tileW, tileH);
-        const tileShade = ctx.createLinearGradient(0, y + tileH - 125, 0, y + tileH);
+        const tileShade = ctx.createLinearGradient(0, y + tileH - 160, 0, y + tileH);
         tileShade.addColorStop(0, "rgba(11,104,57,0)");
-        tileShade.addColorStop(1, "rgba(11,104,57,.94)");
+        tileShade.addColorStop(1, "rgba(11,104,57,.95)");
         ctx.fillStyle = tileShade;
-        ctx.fillRect(x, y + tileH - 130, tileW, 130);
+        ctx.fillRect(x, y + tileH - 170, tileW, 170);
         ctx.restore();
-        ctx.strokeStyle = i % 2 === 0 ? COLORS.pink : COLORS.cyan;
+        ctx.strokeStyle = accents[i];
         ctx.lineWidth = 7;
-        roundRect(ctx, x, y, tileW, tileH, 24);
+        roundRect(ctx, x, y, tileW, tileH, 22);
         ctx.stroke();
+        ctx.fillStyle = COLORS.orange;
+        ctx.fillRect(x + 18, y + tileH - 58, Math.min(120, tileW - 36), 8);
         ctx.fillStyle = COLORS.white;
-        fitText(ctx, names[i] || `Builder ${i + 1}`, tileW - 56, 34, 900);
-        ctx.fillText(names[i] || `Builder ${i + 1}`, x + 24, y + tileH - 26);
+        fitText(ctx, names[i] || `Builder ${i + 1}`, tileW - 40, 32, 900);
+        ctx.fillText(names[i] || `Builder ${i + 1}`, x + 18, y + tileH - 24);
       }
       ctx.fillStyle = COLORS.lime;
-      roundRect(ctx, 54, 974, 972, 62, 18);
+      roundRect(ctx, 42, 948, 996, 68, 18);
       ctx.fill();
       ctx.fillStyle = COLORS.ink;
       ctx.textAlign = "center";
-      ctx.font = `700 28px ${MONO_FONT}`;
-      ctx.fillText("WE CAME TO GOA TO SHIP  •  #FRAMEINGOA", 540, 1015);
+      ctx.font = `700 26px ${MONO_FONT}`;
+      ctx.fillText("WE CAME TO GOA TO SHIP  •  #FRAMEINGOA", 540, 992);
     }
-  }, [mode, photos, name, stack, teamName, memberNames, builderTitle, fontsReady]);
+  }, [mode, idDesign, photos, name, stack, teamName, memberNames, displayHandle, fontsReady]);
 
   async function fileToPhoto(file: File): Promise<Photo> {
     let source: Blob = file;
@@ -342,7 +688,7 @@ export default function Home() {
   }
 
   async function addFiles(files: FileList | File[], requestedSlot: number | null = null) {
-    const selected = Array.from(files).slice(0, mode === "squad" ? 4 : 1);
+    const selected = Array.from(files).slice(0, mode === "squad" ? SQUAD_SIZE : 1);
     if (!selected.length) return;
     setBusy(true);
     setNotice("");
@@ -356,16 +702,16 @@ export default function Home() {
         });
       } else {
         setPhotos((current) => {
-          const next: Array<Photo | null> = Array.from({ length: 4 }, (_, index) => current[index] ?? null);
+          const next: Array<Photo | null> = Array.from({ length: SQUAD_SIZE }, (_, index) => current[index] ?? null);
           let nextSlot = requestedSlot ?? next.findIndex((photo) => !photo);
           if (nextSlot < 0) nextSlot = 0;
           loaded.forEach((photo) => {
-            if (nextSlot > 3) return;
+            if (nextSlot >= SQUAD_SIZE) return;
             const replaced = next[nextSlot];
             if (replaced) URL.revokeObjectURL(replaced.image.src);
             next[nextSlot] = photo;
             const followingEmpty = next.findIndex((item, index) => index > nextSlot && !item);
-            nextSlot = followingEmpty >= 0 ? followingEmpty : 4;
+            nextSlot = followingEmpty >= 0 ? followingEmpty : SQUAD_SIZE;
           });
           return next;
         });
@@ -435,7 +781,8 @@ export default function Home() {
     const blob = await canvasBlob();
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `hh-goa-${mode}-${(name || teamName || "builder").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
+    const designTag = mode === "id" ? `-${idDesign}` : "";
+    link.download = `hh-goa-${mode}${designTag}-${(name || teamName || "builder").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     setNotice("Your frame is downloaded. Goa looks good on you.");
@@ -466,8 +813,21 @@ export default function Home() {
     void addFiles(event.dataTransfer.files);
   }
 
+  const activeDesign = ID_DESIGNS.find((design) => design.id === idDesign) ?? ID_DESIGNS[0];
+
   return (
     <main>
+      <div className="floral-layer" aria-hidden="true">
+        <span className="floral floral-a" />
+        <span className="floral floral-b" />
+        <span className="floral floral-c" />
+        <span className="floral floral-d" />
+        <span className="floral floral-e" />
+        <span className="leaf leaf-a" />
+        <span className="leaf leaf-b" />
+        <span className="leaf leaf-c" />
+      </div>
+
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Frame in Goa home">
           <span className="brand-mark">HH</span>
@@ -497,10 +857,22 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="step-heading second"><span>02</span><div><small>ADD THE HUMANS</small><strong>{mode === "squad" ? "Upload up to four photos" : "Drop in your best photo"}</strong></div></div>
+          {mode === "id" && (
+            <label className="design-picker">
+              <span>Card design</span>
+              <select value={idDesign} onChange={(event) => setIdDesign(event.target.value as IdDesign)} aria-label="Choose Builder ID design">
+                {ID_DESIGNS.map((design) => (
+                  <option key={design.id} value={design.id}>{design.label}</option>
+                ))}
+              </select>
+              <small>{activeDesign.blurb}</small>
+            </label>
+          )}
+
+          <div className="step-heading second"><span>02</span><div><small>ADD THE HUMANS</small><strong>{mode === "squad" ? "Upload up to three photos" : "Drop in your best photo"}</strong></div></div>
           {mode === "squad" ? (
             <div className="squad-slots" aria-label="Squad photo slots">
-              {Array.from({ length: 4 }, (_, slot) => {
+              {Array.from({ length: SQUAD_SIZE }, (_, slot) => {
                 const photo = photos[slot];
                 return (
                   <div className={`squad-slot ${photo ? "filled" : ""}`} key={slot}>
@@ -518,10 +890,10 @@ export default function Home() {
                   </div>
                 );
               })}
-              <p>{busy ? "Adding your builder…" : `${photos.filter(Boolean).length}/4 frames filled • choose any frame`}</p>
-              {photos.filter(Boolean).length < 4 && (
+              <p>{busy ? "Adding your builder…" : `${photos.filter(Boolean).length}/${SQUAD_SIZE} frames filled • choose any frame`}</p>
+              {photos.filter(Boolean).length < SQUAD_SIZE && (
                 <button type="button" className="next-upload" onClick={() => {
-                  const nextEmpty = Array.from({ length: 4 }, (_, index) => photos[index] ?? null).findIndex((photo) => !photo);
+                  const nextEmpty = Array.from({ length: SQUAD_SIZE }, (_, index) => photos[index] ?? null).findIndex((photo) => !photo);
                   chooseSquadSlot(nextEmpty >= 0 ? nextEmpty : 0);
                 }}>
                   + Add photo to next empty frame
@@ -569,15 +941,34 @@ export default function Home() {
               <>
                 <label>Your name<input maxLength={26} value={name} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setName(event.target.value)} /></label>
                 <label>Your stack / role<input maxLength={28} value={stack} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setStack(event.target.value)} /></label>
-                <div className="generated-field"><span>Generated builder class</span><strong>{builderTitle}</strong><button type="button" onClick={() => setName((current) => `${current} `)} aria-label="Generate a different builder class">↻</button></div>
+                <label className="generated-field">
+                  <span>TEAM NAME</span>
+                  <input
+                    maxLength={28}
+                    value={teamName}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) => setTeamName(event.target.value)}
+                    aria-label="Team name"
+                  />
+                </label>
+                <label className="generated-field optional-field">
+                  <span>SOCIAL HANDLE <em>(optional)</em></span>
+                  <input
+                    maxLength={24}
+                    value={socialHandle}
+                    placeholder="@yourhandle"
+                    onChange={(event) => setSocialHandle(event.target.value)}
+                    aria-label="Social handle (optional)"
+                  />
+                </label>
               </>
             )}
           </div>
         </div>
 
         <div className="preview-panel">
-          <div className="preview-heading"><div><span>LIVE OUTPUT</span><strong>Ready for the Radar</strong></div><span className="status"><i /> 1080 × 1080 PNG</span></div>
-          <div className="canvas-shell"><canvas ref={canvasRef} aria-label="Your generated HH Goa frame preview" /></div>
+          <div className="preview-heading"><div><span>LIVE OUTPUT</span><strong>Ready for the Radar</strong></div><span className="status"><i /> {outputSize} PNG</span></div>
+          <div className={`canvas-shell ${mode === "id" ? "landscape" : ""}`}><canvas ref={canvasRef} aria-label="Your generated HH Goa frame preview" /></div>
           <div className="actions">
             <button className="download" type="button" onClick={() => void download()}><span>↓</span> Download PNG</button>
             <button className="share" type="button" onClick={() => void share()}><span>𝕏</span> Share to X</button>
@@ -588,7 +979,7 @@ export default function Home() {
 
       <section className="how" id="how-it-works">
         <div><span>01</span><strong>DROP IT</strong><p>Any photo. Any shape. Smart framing handles the crop.</p></div>
-        <div><span>02</span><strong>MAKE IT YOURS</strong><p>Add your name and stack. We generate your builder class.</p></div>
+        <div><span>02</span><strong>MAKE IT YOURS</strong><p>Pick a design, add your name, team, and optional social handle.</p></div>
         <div><span>03</span><strong>HIT THE RADAR</strong><p>Download or share straight to X with <b>#FrameInGoa</b>.</p></div>
       </section>
 
