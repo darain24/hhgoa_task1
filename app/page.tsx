@@ -212,6 +212,34 @@ function formatHandle(value: string) {
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 }
 
+function shareBuilderId(builderName: string, team: string) {
+  const seed = `${builderName.trim().toLowerCase()}|${team.trim().toLowerCase()}`;
+  let hash = 7;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  const code = String((hash % 9000) + 1000);
+  const teamSlug = team.trim().replace(/[^a-zA-Z0-9]+/g, "").slice(0, 8).toUpperCase() || "TEAM";
+  return `#HH-GOA-${teamSlug}-${code}`;
+}
+
+function buildShareCaption(mode: Mode, builderName: string, team: string) {
+  const SITE_URL = "https://hhgoa-task1-xi.vercel.app/";
+  const who = (mode === "squad" ? team : builderName).trim() || "a builder";
+  const id = shareBuilderId(who, team.trim() || "ShipSquad");
+  return [
+    "🌴 Built my HH Goa Builder Card!",
+    "",
+    `👤 ${who}`,
+    `📇 Builder ID: ${id}`,
+    "",
+    "Excited to build, ship & connect in Goa 🚀",
+    "",
+    "Create yours:",
+    SITE_URL,
+    "",
+    "#FrameInGoa #HHGoa2026",
+  ].join("\n");
+}
+
 function drawCoastalId(
   ctx: CanvasRenderingContext2D,
   photo: Photo | null | undefined,
@@ -789,8 +817,7 @@ export default function Home() {
   }
 
   async function share() {
-    const subject = mode === "squad" ? teamName : name;
-    const text = `Meet ${subject || "the builders"} — shipping big ideas at HH Goa 2026. Make yours in seconds. #FrameInGoa`;
+    const text = buildShareCaption(mode, name || "Your Name", teamName || "The Ship Squad");
     const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
 
     // Open X while this click still has browser user activation. Waiting for the
