@@ -17,14 +17,17 @@ const TITLES = [
 ];
 
 const COLORS = {
-  ink: "#11102b",
-  cream: "#fff7e6",
-  orange: "#ff6332",
-  pink: "#ff4c9a",
-  lime: "#d8ff3e",
-  cyan: "#51dcff",
+  ink: "#0b6839",
+  cream: "#fffbe8",
+  orange: "#fee101",
+  pink: "#ff0080",
+  lime: "#fee101",
+  cyan: "#fffbe8",
   white: "#ffffff",
 };
+
+const DISPLAY_FONT = '"Imbue", Georgia, serif';
+const MONO_FONT = '"Victor Mono", monospace';
 
 function hash(value: string) {
   return [...value].reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) >>> 0, 7);
@@ -56,7 +59,7 @@ function drawCover(
 function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, startSize: number, weight = 900) {
   let size = startSize;
   do {
-    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    ctx.font = `${weight} ${size}px ${DISPLAY_FONT}`;
     if (ctx.measureText(text).width <= maxWidth) return size;
     size -= 2;
   } while (size > 28);
@@ -76,20 +79,20 @@ function drawStamp(ctx: CanvasRenderingContext2D, x: number, y: number, rotation
   ctx.fillStyle = COLORS.ink;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = "900 37px Arial, sans-serif";
+  ctx.font = `800 45px ${DISPLAY_FONT}`;
   ctx.fillText("HH GOA '26", 0, -9);
-  ctx.font = "700 17px Arial, sans-serif";
+  ctx.font = `700 17px ${MONO_FONT}`;
   ctx.fillText("SHIP • SHARE • REPEAT", 0, 28);
   ctx.restore();
 }
 
 function drawNoPhoto(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   const gradient = ctx.createLinearGradient(x, y, x + w, y + h);
-  gradient.addColorStop(0, "#272159");
-  gradient.addColorStop(1, "#14122f");
+  gradient.addColorStop(0, "#0b6839");
+  gradient.addColorStop(1, "#064b29");
   ctx.fillStyle = gradient;
   ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = "rgba(255,255,255,.14)";
+  ctx.strokeStyle = "rgba(254,225,1,.16)";
   ctx.lineWidth = 3;
   for (let i = -h; i < w; i += 56) {
     ctx.beginPath();
@@ -97,17 +100,18 @@ function drawNoPhoto(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
     ctx.lineTo(x + i + h, y + h);
     ctx.stroke();
   }
-  ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.fillStyle = COLORS.orange;
   ctx.textAlign = "center";
-  ctx.font = "700 28px Arial, sans-serif";
+  ctx.font = `700 28px ${MONO_FONT}`;
   ctx.fillText("YOUR PHOTO LANDS HERE", x + w / 2, y + h / 2);
 }
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploadSlotRef = useRef<number | null>(null);
   const [mode, setMode] = useState<Mode>("id");
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photos, setPhotos] = useState<Array<Photo | null>>([]);
   const [name, setName] = useState("Your Name");
   const [stack, setStack] = useState("Design + Code");
   const [teamName, setTeamName] = useState("The Ship Squad");
@@ -115,11 +119,16 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState("");
+  const [fontsReady, setFontsReady] = useState(false);
 
   const builderTitle = useMemo(() => {
     const seed = `${name.trim()}-${stack.trim()}`;
     return TITLES[hash(seed) % TITLES.length];
   }, [name, stack]);
+
+  useEffect(() => {
+    document.fonts.ready.then(() => setFontsReady(true));
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -136,8 +145,8 @@ export default function Home() {
       if (photos[0]) drawCover(ctx, photos[0], 0, 0, 1080, 1080);
       else drawNoPhoto(ctx, 0, 0, 1080, 1080);
       const shade = ctx.createLinearGradient(0, 580, 0, 1080);
-      shade.addColorStop(0, "rgba(17,16,43,0)");
-      shade.addColorStop(1, "rgba(17,16,43,.94)");
+      shade.addColorStop(0, "rgba(11,104,57,0)");
+      shade.addColorStop(1, "rgba(11,104,57,.96)");
       ctx.fillStyle = shade;
       ctx.fillRect(0, 520, 1080, 560);
       ctx.strokeStyle = COLORS.orange;
@@ -155,7 +164,7 @@ export default function Home() {
       fitText(ctx, name || "Your Name", 870, 90);
       ctx.fillText((name || "Your Name").toUpperCase(), 74, 894);
       ctx.fillStyle = COLORS.cyan;
-      ctx.font = "800 34px Arial, sans-serif";
+      ctx.font = `700 34px ${MONO_FONT}`;
       ctx.fillText(`${builderTitle.toUpperCase()}  /  #FRAMEINGOA`, 78, 953);
       ctx.fillStyle = COLORS.orange;
       ctx.fillRect(78, 984, 376, 14);
@@ -171,11 +180,11 @@ export default function Home() {
       ctx.fillStyle = COLORS.pink;
       ctx.fillRect(664, 138, 416, 24);
       ctx.fillStyle = COLORS.white;
-      ctx.font = "900 48px Arial, sans-serif";
+      ctx.font = `800 61px ${DISPLAY_FONT}`;
       ctx.fillText("HACKERS HOUSE", 58, 88);
       ctx.fillStyle = COLORS.lime;
       ctx.textAlign = "right";
-      ctx.font = "900 35px Arial, sans-serif";
+      ctx.font = `800 44px ${DISPLAY_FONT}`;
       ctx.fillText("GOA / 2026", 1024, 84);
       ctx.textAlign = "left";
 
@@ -194,11 +203,11 @@ export default function Home() {
       roundRect(ctx, 604, 218, 420, 82, 22);
       ctx.fill();
       ctx.fillStyle = COLORS.white;
-      ctx.font = "900 31px Arial, sans-serif";
+      ctx.font = `700 31px ${MONO_FONT}`;
       ctx.fillText("BUILDER ID  /  026", 630, 270);
 
       ctx.fillStyle = COLORS.ink;
-      ctx.font = "700 23px Arial, sans-serif";
+      ctx.font = `700 23px ${MONO_FONT}`;
       ctx.fillText("BUILDER", 616, 373);
       ctx.fillStyle = COLORS.orange;
       fitText(ctx, name || "Your Name", 396, 64);
@@ -206,14 +215,14 @@ export default function Home() {
       ctx.fillStyle = COLORS.ink;
       ctx.fillRect(616, 462, 390, 5);
 
-      ctx.font = "700 23px Arial, sans-serif";
+      ctx.font = `700 23px ${MONO_FONT}`;
       ctx.fillText("STACK / ROLE", 616, 526);
       ctx.fillStyle = COLORS.ink;
       fitText(ctx, stack || "Design + Code", 392, 42, 800);
       ctx.fillText(stack || "Design + Code", 616, 578);
 
       ctx.fillStyle = COLORS.ink;
-      ctx.font = "700 23px Arial, sans-serif";
+      ctx.font = `700 23px ${MONO_FONT}`;
       ctx.fillText("BUILDER CLASS", 616, 661);
       ctx.fillStyle = COLORS.cyan;
       roundRect(ctx, 604, 684, 420, 125, 22);
@@ -224,12 +233,12 @@ export default function Home() {
 
       drawStamp(ctx, 806, 877, -0.04);
       ctx.fillStyle = COLORS.ink;
-      ctx.font = "900 30px Arial, sans-serif";
+      ctx.font = `800 38px ${DISPLAY_FONT}`;
       ctx.fillText("BUILDERS, BEACHES, BIG IDEAS.", 58, 978);
       ctx.fillStyle = COLORS.orange;
       ctx.fillRect(58, 1004, 950, 15);
       ctx.fillStyle = COLORS.ink;
-      ctx.font = "700 18px Arial, sans-serif";
+      ctx.font = `700 18px ${MONO_FONT}`;
       ctx.fillText("#FRAMEINGOA", 58, 1050);
       ctx.textAlign = "right";
       ctx.fillText("VALID FOR ONE UNFORGETTABLE BUILD", 1022, 1050);
@@ -249,24 +258,23 @@ export default function Home() {
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = COLORS.ink;
-      ctx.font = "900 27px Arial, sans-serif";
+      ctx.font = `700 27px ${MONO_FONT}`;
       ctx.fillText("HH GOA / 2026", 56, 52);
       ctx.fillStyle = COLORS.white;
       fitText(ctx, teamName || "The Ship Squad", 700, 68);
       ctx.fillText((teamName || "The Ship Squad").toUpperCase(), 54, 125);
       ctx.fillStyle = COLORS.ink;
       ctx.textAlign = "right";
-      ctx.font = "900 26px Arial, sans-serif";
+      ctx.font = `700 26px ${MONO_FONT}`;
       ctx.fillText("4 MINDS. 1 FRAME.", 1032, 94);
       ctx.textAlign = "left";
 
       const displayPhotos = photos.slice(0, 4);
-      const count = Math.max(displayPhotos.length, 4);
       const names = memberNames.split(",").map((item) => item.trim()).filter(Boolean);
       const gap = 14;
       const tileW = 479;
       const tileH = 372;
-      for (let i = 0; i < count && i < 4; i++) {
+      for (let i = 0; i < 4; i++) {
         const col = i % 2;
         const row = Math.floor(i / 2);
         const x = 54 + col * (tileW + gap);
@@ -274,11 +282,12 @@ export default function Home() {
         ctx.save();
         roundRect(ctx, x, y, tileW, tileH, 24);
         ctx.clip();
-        if (displayPhotos[i]) drawCover(ctx, displayPhotos[i], x, y, tileW, tileH);
+        const photo = displayPhotos[i];
+        if (photo) drawCover(ctx, photo, x, y, tileW, tileH);
         else drawNoPhoto(ctx, x, y, tileW, tileH);
         const tileShade = ctx.createLinearGradient(0, y + tileH - 125, 0, y + tileH);
-        tileShade.addColorStop(0, "rgba(17,16,43,0)");
-        tileShade.addColorStop(1, "rgba(17,16,43,.92)");
+        tileShade.addColorStop(0, "rgba(11,104,57,0)");
+        tileShade.addColorStop(1, "rgba(11,104,57,.94)");
         ctx.fillStyle = tileShade;
         ctx.fillRect(x, y + tileH - 130, tileW, 130);
         ctx.restore();
@@ -295,10 +304,10 @@ export default function Home() {
       ctx.fill();
       ctx.fillStyle = COLORS.ink;
       ctx.textAlign = "center";
-      ctx.font = "900 28px Arial, sans-serif";
+      ctx.font = `700 28px ${MONO_FONT}`;
       ctx.fillText("WE CAME TO GOA TO SHIP  •  #FRAMEINGOA", 540, 1015);
     }
-  }, [mode, photos, name, stack, teamName, memberNames, builderTitle]);
+  }, [mode, photos, name, stack, teamName, memberNames, builderTitle, fontsReady]);
 
   async function fileToPhoto(file: File): Promise<Photo> {
     let source: Blob = file;
@@ -332,14 +341,35 @@ export default function Home() {
     return { image, name: file.name, focusX, focusY };
   }
 
-  async function addFiles(files: FileList | File[]) {
+  async function addFiles(files: FileList | File[], requestedSlot: number | null = null) {
     const selected = Array.from(files).slice(0, mode === "squad" ? 4 : 1);
     if (!selected.length) return;
     setBusy(true);
     setNotice("");
     try {
       const loaded = await Promise.all(selected.map(fileToPhoto));
-      setPhotos(loaded);
+      if (mode !== "squad") {
+        setPhotos((current) => {
+          const previous = current[0];
+          if (previous) URL.revokeObjectURL(previous.image.src);
+          return [loaded[0]];
+        });
+      } else {
+        setPhotos((current) => {
+          const next: Array<Photo | null> = Array.from({ length: 4 }, (_, index) => current[index] ?? null);
+          let nextSlot = requestedSlot ?? next.findIndex((photo) => !photo);
+          if (nextSlot < 0) nextSlot = 0;
+          loaded.forEach((photo) => {
+            if (nextSlot > 3) return;
+            const replaced = next[nextSlot];
+            if (replaced) URL.revokeObjectURL(replaced.image.src);
+            next[nextSlot] = photo;
+            const followingEmpty = next.findIndex((item, index) => index > nextSlot && !item);
+            nextSlot = followingEmpty >= 0 ? followingEmpty : 4;
+          });
+          return next;
+        });
+      }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Try a JPG, PNG, WebP, or HEIC photo.");
     } finally {
@@ -351,7 +381,46 @@ export default function Home() {
     setMode(next);
     setPhotos([]);
     setNotice("");
+    uploadSlotRef.current = null;
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function chooseSquadSlot(slot: number) {
+    uploadSlotRef.current = slot;
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      inputRef.current.click();
+    }
+  }
+
+  function chooseSinglePhoto() {
+    uploadSlotRef.current = null;
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      inputRef.current.click();
+    }
+  }
+
+  function removeSinglePhoto() {
+    setPhotos((current) => {
+      const photo = current[0];
+      if (photo) URL.revokeObjectURL(photo.image.src);
+      return [];
+    });
+    if (inputRef.current) inputRef.current.value = "";
+    setNotice("Photo removed. Choose another whenever you’re ready.");
+  }
+
+  function removeSquadPhoto(slot: number) {
+    setPhotos((current) => {
+      const next = [...current];
+      const removed = next[slot];
+      if (removed) URL.revokeObjectURL(removed.image.src);
+      next[slot] = null;
+      return next;
+    });
+    uploadSlotRef.current = slot;
+    setNotice(`Frame ${slot + 1} is empty and ready for another photo.`);
   }
 
   async function canvasBlob() {
@@ -373,21 +442,21 @@ export default function Home() {
   }
 
   async function share() {
-    const blob = await canvasBlob();
-    const file = new File([blob], "hh-goa-frame.png", { type: "image/png" });
     const subject = mode === "squad" ? teamName : name;
     const text = `Meet ${subject || "the builders"} — shipping big ideas at HH Goa 2026. Make yours in seconds. #FrameInGoa`;
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ text, files: [file] });
-        setNotice("Frame shared — see you on the Radar.");
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      }
-    }
+    const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+
+    // Open X while this click still has browser user activation. Waiting for the
+    // canvas export first can cause the new tab to be blocked as a popup.
+    const xLink = document.createElement("a");
+    xLink.href = xUrl;
+    xLink.target = "_blank";
+    xLink.rel = "noopener noreferrer";
+    document.body.appendChild(xLink);
+    xLink.click();
+    xLink.remove();
+
     await download();
-    window.open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
     setNotice("Your image is downloaded. Attach it to the pre-filled X post.");
   }
 
@@ -429,19 +498,66 @@ export default function Home() {
           </div>
 
           <div className="step-heading second"><span>02</span><div><small>ADD THE HUMANS</small><strong>{mode === "squad" ? "Upload up to four photos" : "Drop in your best photo"}</strong></div></div>
-          <button
-            type="button"
-            className={`drop-zone ${dragging ? "dragging" : ""}`}
-            onClick={() => inputRef.current?.click()}
-            onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-          >
-            <span className="upload-icon">↥</span>
-            <strong>{busy ? "Making room on the badge…" : photos.length ? `${photos.length} photo${photos.length > 1 ? "s" : ""} ready` : "Tap to choose photos"}</strong>
-            <small>JPG, PNG, WebP or iPhone HEIC • smart crop included</small>
-          </button>
-          <input ref={inputRef} className="visually-hidden" type="file" accept="image/*,.heic,.heif" multiple={mode === "squad"} onChange={(event: ChangeEvent<HTMLInputElement>) => event.target.files && void addFiles(event.target.files)} />
+          {mode === "squad" ? (
+            <div className="squad-slots" aria-label="Squad photo slots">
+              {Array.from({ length: 4 }, (_, slot) => {
+                const photo = photos[slot];
+                return (
+                  <div className={`squad-slot ${photo ? "filled" : ""}`} key={slot}>
+                    <button type="button" className="slot-upload" onClick={() => chooseSquadSlot(slot)} aria-label={`${photo ? "Replace" : "Upload"} photo in frame ${slot + 1}`}>
+                      {photo ? (
+                        // The preview is a local blob URL, so Next Image optimization does not apply.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photo.image.src} alt="" />
+                      ) : (
+                        <span className="slot-empty"><b>+</b><small>FRAME {slot + 1}</small></span>
+                      )}
+                      <span className="slot-action">{photo ? "Replace" : "Upload"}</span>
+                    </button>
+                    {photo && <button type="button" className="slot-remove" onClick={() => removeSquadPhoto(slot)} aria-label={`Remove photo from frame ${slot + 1}`}>×</button>}
+                  </div>
+                );
+              })}
+              <p>{busy ? "Adding your builder…" : `${photos.filter(Boolean).length}/4 frames filled • choose any frame`}</p>
+              {photos.filter(Boolean).length < 4 && (
+                <button type="button" className="next-upload" onClick={() => {
+                  const nextEmpty = Array.from({ length: 4 }, (_, index) => photos[index] ?? null).findIndex((photo) => !photo);
+                  chooseSquadSlot(nextEmpty >= 0 ? nextEmpty : 0);
+                }}>
+                  + Add photo to next empty frame
+                </button>
+              )}
+            </div>
+          ) : (
+            photos[0] ? (
+              <div className="single-photo-slot">
+                {/* Local blob previews cannot use Next Image optimization. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photos[0].image.src} alt="Current upload" />
+                <div className="single-photo-actions">
+                  <button type="button" className="replace-photo" onClick={chooseSinglePhoto}>↻ Replace photo</button>
+                  <button type="button" className="remove-photo" onClick={removeSinglePhoto}>× Remove</button>
+                </div>
+                <small>Smart crop is applied automatically in the final frame.</small>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={`drop-zone ${dragging ? "dragging" : ""}`}
+                onClick={chooseSinglePhoto}
+                onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={onDrop}
+              >
+                <span className="upload-icon">↥</span>
+                <strong>{busy ? "Making room on the badge…" : "Tap to choose a photo"}</strong>
+                <small>JPG, PNG, WebP or iPhone HEIC • smart crop included</small>
+              </button>
+            )
+          )}
+          <input ref={inputRef} className="visually-hidden" type="file" accept="image/*,.heic,.heif" multiple={mode === "squad"} onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            if (event.target.files) void addFiles(event.target.files, mode === "squad" ? uploadSlotRef.current : null);
+          }} />
 
           <div className="fields">
             {mode === "squad" ? (

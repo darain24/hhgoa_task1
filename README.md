@@ -26,6 +26,11 @@ npm run build
 Import this repository into Vercel. The framework preset should be detected as
 Next.js, and no environment variables or custom build settings are required.
 
+If reusing a Vercel project that previously deployed another framework, set its
+Root Directory to `./`, then clear any dashboard overrides for Build Command and
+Output Directory. The committed `vercel.json` selects Next.js and restores its
+framework-managed output directory.
+
 The generator runs entirely in the browser: uploaded photos are not sent to a
 server.
 # hhgoa_task1

@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Imbue, Victor_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const imbue = Imbue({
+  variable: "--font-imbue",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+const victorMono = Victor_Mono({
+  variable: "--font-victor-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -21,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: "Make your HH Goa 2026 builder frame in seconds. #FrameInGoa",
       type: "website",
       url: origin,
-      images: [{ url: `${origin}/og.png`, width: 1792, height: 918, alt: "Your Build. Your Frame. HH Goa 2026." }],
+      images: [{ url: `${origin}/og.png`, width: 1536, height: 1024, alt: "Your Build. Your Frame. HH Goa 2026." }],
     },
     twitter: {
       card: "summary_large_image",
@@ -33,5 +41,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body></html>;
+  return <html lang="en"><body className={`${imbue.variable} ${victorMono.variable}`}>{children}</body></html>;
 }
