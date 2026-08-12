@@ -99,11 +99,26 @@ function drawNoPhoto(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
     ctx.lineTo(x + i + h, y + h);
     ctx.stroke();
   }
-  ctx.fillStyle = COLORS.orange;
+
+  const pad = Math.max(16, Math.min(w, h) * 0.12);
+  const maxWidth = w - pad * 2;
+  const lines = w < 420 ? ["YOUR PHOTO", "LANDS HERE"] : ["YOUR PHOTO LANDS HERE"];
+  let size = Math.min(28, Math.floor(w * 0.07));
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `700 28px ${MONO_FONT}`;
-  ctx.fillText("YOUR PHOTO LANDS HERE", x + w / 2, y + h / 2);
+  do {
+    ctx.font = `700 ${size}px ${MONO_FONT}`;
+    const widest = Math.max(...lines.map((line) => ctx.measureText(line).width));
+    if (widest <= maxWidth) break;
+    size -= 1;
+  } while (size > 10);
+
+  const lineGap = size * 1.25;
+  const startY = y + h / 2 - ((lines.length - 1) * lineGap) / 2;
+  ctx.fillStyle = COLORS.orange;
+  lines.forEach((line, index) => {
+    ctx.fillText(line, x + w / 2, startY + index * lineGap);
+  });
   ctx.textBaseline = "alphabetic";
 }
 
@@ -532,15 +547,16 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>("id");
   const [idDesign, setIdDesign] = useState<IdDesign>("coastal");
   const [photos, setPhotos] = useState<Array<Photo | null>>([]);
-  const [name, setName] = useState("Your Name");
-  const [stack, setStack] = useState("Design + Code");
-  const [teamName, setTeamName] = useState("The Ship Squad");
+  const [name, setName] = useState("");
+  const [stack, setStack] = useState("");
+  const [teamName, setTeamName] = useState("");
   const [socialHandle, setSocialHandle] = useState("");
-  const [memberNames, setMemberNames] = useState("Builder One, Builder Two, Builder Three");
+  const [memberNames, setMemberNames] = useState("");
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState("");
   const [fontsReady, setFontsReady] = useState(false);
+  const [popupMessage, setPopupMessage] = useState("");
 
   const outputSize = mode === "id" ? `${ID_W} × ${ID_H}` : `${SQ} × ${SQ}`;
   const displayHandle = formatHandle(socialHandle);
@@ -805,7 +821,29 @@ export default function Home() {
     );
   }
 
+  function missingDetailsMessage() {
+    if (mode === "squad") {
+      if (!photos.some(Boolean)) return "Upload at least one squad photo before continuing.";
+      if (!teamName.trim()) return "Enter your squad name before continuing.";
+      if (!memberNames.trim()) return "Add member names before continuing.";
+      return "";
+    }
+    if (!photos[0]) return "Upload your photo before continuing.";
+    if (!name.trim()) return "Enter your name before continuing.";
+    if (!stack.trim()) return "Enter your stack / role before continuing.";
+    if (!teamName.trim()) return "Enter your team name before continuing.";
+    return "";
+  }
+
+  function requireDetails() {
+    const message = missingDetailsMessage();
+    if (!message) return true;
+    setPopupMessage(message);
+    return false;
+  }
+
   async function download() {
+    if (!requireDetails()) return;
     const blob = await canvasBlob();
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -816,12 +854,11 @@ export default function Home() {
     setNotice("Your frame is downloaded. Goa looks good on you.");
   }
 
-  async function share() {
+  function share() {
+    if (!requireDetails()) return;
     const text = buildShareCaption(mode, name || "Your Name", teamName || "The Ship Squad");
     const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
 
-    // Open X while this click still has browser user activation. Waiting for the
-    // canvas export first can cause the new tab to be blocked as a popup.
     const xLink = document.createElement("a");
     xLink.href = xUrl;
     xLink.target = "_blank";
@@ -830,8 +867,7 @@ export default function Home() {
     xLink.click();
     xLink.remove();
 
-    await download();
-    setNotice("Your image is downloaded. Attach it to the pre-filled X post.");
+    setNotice("X is open with your draft. Attach your frame from Download PNG if you want.");
   }
 
   function onDrop(event: DragEvent<HTMLButtonElement>) {
@@ -961,18 +997,19 @@ export default function Home() {
           <div className="fields">
             {mode === "squad" ? (
               <>
-                <label>Squad name<input maxLength={28} value={teamName} onChange={(event) => setTeamName(event.target.value)} /></label>
-                <label>Names, separated by commas<input value={memberNames} onChange={(event) => setMemberNames(event.target.value)} /></label>
+                <label>Squad name<input maxLength={28} value={teamName} placeholder="The Ship Squad" onChange={(event) => setTeamName(event.target.value)} /></label>
+                <label>Names, separated by commas<input value={memberNames} placeholder="Builder One, Builder Two, Builder Three" onChange={(event) => setMemberNames(event.target.value)} /></label>
               </>
             ) : (
               <>
-                <label>Your name<input maxLength={26} value={name} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setName(event.target.value)} /></label>
-                <label>Your stack / role<input maxLength={28} value={stack} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setStack(event.target.value)} /></label>
+                <label>Your name<input maxLength={26} value={name} placeholder="Your Name" onFocus={(event) => event.currentTarget.select()} onChange={(event) => setName(event.target.value)} /></label>
+                <label>Your stack / role<input maxLength={28} value={stack} placeholder="Design + Code" onFocus={(event) => event.currentTarget.select()} onChange={(event) => setStack(event.target.value)} /></label>
                 <label className="generated-field">
                   <span>TEAM NAME</span>
                   <input
                     maxLength={28}
                     value={teamName}
+                    placeholder="The Ship Squad"
                     onFocus={(event) => event.currentTarget.select()}
                     onChange={(event) => setTeamName(event.target.value)}
                     aria-label="Team name"
@@ -998,11 +1035,28 @@ export default function Home() {
           <div className={`canvas-shell ${mode === "id" ? "landscape" : ""}`}><canvas ref={canvasRef} aria-label="Your generated HH Goa frame preview" /></div>
           <div className="actions">
             <button className="download" type="button" onClick={() => void download()}><span>↓</span> Download PNG</button>
-            <button className="share" type="button" onClick={() => void share()}><span>𝕏</span> Share to X</button>
+            <button className="share" type="button" onClick={() => share()}><span>𝕏</span> Share to X</button>
           </div>
           <p className="notice" aria-live="polite">{notice || "One click. One frame. Your shot at the exclusive HH Goa ID."}</p>
         </div>
       </section>
+
+      {popupMessage && (
+        <div className="popup-backdrop" role="presentation" onClick={() => setPopupMessage("")}>
+          <div
+            className="popup-card"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="details-popup-title"
+            aria-describedby="details-popup-message"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p id="details-popup-title">Fill your details first</p>
+            <p id="details-popup-message">{popupMessage}</p>
+            <button type="button" onClick={() => setPopupMessage("")}>Got it</button>
+          </div>
+        </div>
+      )}
 
       <section className="how" id="how-it-works">
         <div><span>01</span><strong>DROP IT</strong><p>Any photo. Any shape. Smart framing handles the crop.</p></div>
