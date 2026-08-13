@@ -591,22 +591,51 @@ function drawHorizonId(
   ctx.fillText("VALID FOR ONE UNFORGETTABLE BUILD", ID_W - 56, 968);
 }
 
+function readSharedLaunch() {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const sharedId = params.get("id");
+  if (!sharedId) return null;
+
+  const sharedMode = params.get("m");
+  const mode: Mode | null =
+    sharedMode === "id" || sharedMode === "pfp" || sharedMode === "squad" ? sharedMode : null;
+
+  const sharedDesign = params.get("d");
+  const idDesign: IdDesign | null =
+    sharedDesign === "coastal" || sharedDesign === "horizon" ? sharedDesign : null;
+
+  return {
+    sharedId,
+    mode,
+    idDesign,
+    name: params.get("n") || "",
+    teamName: params.get("t") || "",
+    stack: params.get("s") || "",
+    socialHandle: params.get("h") || "",
+    memberNames: params.get("members") || "",
+  };
+}
+
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadSlotRef = useRef<number | null>(null);
-  const [mode, setMode] = useState<Mode>("id");
-  const [idDesign, setIdDesign] = useState<IdDesign>("coastal");
+  const [sharedLaunch] = useState(readSharedLaunch);
+  const [mode, setMode] = useState<Mode>(() => sharedLaunch?.mode ?? "id");
+  const [idDesign, setIdDesign] = useState<IdDesign>(() => sharedLaunch?.idDesign ?? "coastal");
   const [photos, setPhotos] = useState<Array<Photo | null>>([]);
-  const [name, setName] = useState("");
-  const [stack, setStack] = useState("");
-  const [teamName, setTeamName] = useState("");
-  const [socialHandle, setSocialHandle] = useState("");
-  const [memberNames, setMemberNames] = useState("");
+  const [name, setName] = useState(() => sharedLaunch?.name ?? "");
+  const [stack, setStack] = useState(() => sharedLaunch?.stack ?? "");
+  const [teamName, setTeamName] = useState(() => sharedLaunch?.teamName ?? "");
+  const [socialHandle, setSocialHandle] = useState(() => sharedLaunch?.socialHandle ?? "");
+  const [memberNames, setMemberNames] = useState(() => sharedLaunch?.memberNames ?? "");
   const [busy, setBusy] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(() =>
+    sharedLaunch ? `Shared Builder ID #${sharedLaunch.sharedId} loaded. Add a photo to finish this frame.` : "",
+  );
   const [fontsReady, setFontsReady] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
 
@@ -615,35 +644,6 @@ export default function Home() {
 
   useEffect(() => {
     document.fonts.ready.then(() => setFontsReady(true));
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const sharedId = params.get("id");
-    if (!sharedId) return;
-
-    const sharedMode = params.get("m");
-    if (sharedMode === "id" || sharedMode === "pfp" || sharedMode === "squad") setMode(sharedMode);
-
-    const sharedDesign = params.get("d");
-    if (sharedDesign === "coastal" || sharedDesign === "horizon") setIdDesign(sharedDesign);
-
-    const sharedName = params.get("n");
-    if (sharedName) setName(sharedName);
-
-    const sharedTeam = params.get("t");
-    if (sharedTeam) setTeamName(sharedTeam);
-
-    const sharedStack = params.get("s");
-    if (sharedStack) setStack(sharedStack);
-
-    const sharedHandle = params.get("h");
-    if (sharedHandle) setSocialHandle(sharedHandle);
-
-    const sharedMembers = params.get("members");
-    if (sharedMembers) setMemberNames(sharedMembers);
-
-    setNotice(`Shared Builder ID #${sharedId} loaded. Add a photo to finish this frame.`);
   }, []);
 
   useEffect(() => {
@@ -1171,14 +1171,19 @@ export default function Home() {
       </section>
 
       {popupMessage && (
-        <div className="popup-backdrop" role="presentation" onClick={() => setPopupMessage("")}>
+        <div className="popup-backdrop">
+          <button
+            type="button"
+            className="popup-backdrop-dismiss"
+            aria-label="Close dialog"
+            onClick={() => setPopupMessage("")}
+          />
           <div
             className="popup-card"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="details-popup-title"
             aria-describedby="details-popup-message"
-            onClick={(event) => event.stopPropagation()}
           >
             <p id="details-popup-title">Fill your details first</p>
             <p id="details-popup-message">{popupMessage}</p>

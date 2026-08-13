@@ -4,27 +4,31 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+function readLocalCard(id: string) {
+  if (!id || typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(`hh-goa-card:${id}`) || "";
+  } catch {
+    return "";
+  }
+}
+
 function CardView() {
   const params = useSearchParams();
   const id = params.get("id") || "";
   const remoteImg = params.get("img") || "";
   const builderName = params.get("n") || "";
   const teamName = params.get("t") || "";
-  const [src, setSrc] = useState("");
+  const [localSrc, setLocalSrc] = useState("");
   const [failed, setFailed] = useState(false);
+  const src = remoteImg || localSrc;
 
   useEffect(() => {
-    if (remoteImg) {
-      setSrc(remoteImg);
-      return;
-    }
-    if (!id) return;
-    try {
-      const local = window.localStorage.getItem(`hh-goa-card:${id}`);
-      if (local) setSrc(local);
-    } catch {
-      // localStorage can be blocked; remote img remains the primary path.
-    }
+    if (remoteImg || !id) return;
+    const frame = window.requestAnimationFrame(() => {
+      setLocalSrc(readLocalCard(id));
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [id, remoteImg]);
 
   return (
