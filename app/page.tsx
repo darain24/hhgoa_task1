@@ -227,6 +227,8 @@ function formatHandle(value: string) {
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 }
 
+const SITE_URL = "https://hhgoa-task1-xi.vercel.app/";
+
 function shareBuilderId(builderName: string, team: string) {
   const seed = `${builderName.trim().toLowerCase()}|${team.trim().toLowerCase()}`;
   let hash = 7;
@@ -236,10 +238,47 @@ function shareBuilderId(builderName: string, team: string) {
   return `#HH-GOA-${teamSlug}-${code}`;
 }
 
-function buildShareCaption(mode: Mode, builderName: string, team: string) {
-  const SITE_URL = "https://hhgoa-task1-xi.vercel.app/";
-  const who = (mode === "squad" ? team : builderName).trim() || "a builder";
-  const id = shareBuilderId(who, team.trim() || "ShipSquad");
+function buildCardShareUrl(options: {
+  mode: Mode;
+  idDesign: IdDesign;
+  builderName: string;
+  team: string;
+  stack: string;
+  socialHandle?: string;
+  memberNames?: string;
+  imageUrl?: string;
+}) {
+  const who = (options.mode === "squad" ? options.team : options.builderName).trim() || "a builder";
+  const id = shareBuilderId(who, options.team.trim() || "ShipSquad").replace(/^#/, "");
+  const params = new URLSearchParams();
+  params.set("id", id);
+  if (options.imageUrl) params.set("img", options.imageUrl);
+  params.set("m", options.mode);
+  if (options.mode === "id") params.set("d", options.idDesign);
+  if (options.builderName.trim()) params.set("n", options.builderName.trim());
+  if (options.team.trim()) params.set("t", options.team.trim());
+  if (options.stack.trim()) params.set("s", options.stack.trim());
+  const handle = options.socialHandle?.trim().replace(/^@/, "");
+  if (handle) params.set("h", handle);
+  if (options.mode === "squad" && options.memberNames?.trim()) {
+    params.set("members", options.memberNames.trim());
+  }
+  return `${SITE_URL}card?${params.toString()}`;
+}
+
+function buildShareCaption(options: {
+  mode: Mode;
+  idDesign: IdDesign;
+  builderName: string;
+  team: string;
+  stack: string;
+  socialHandle?: string;
+  memberNames?: string;
+  imageUrl?: string;
+}) {
+  const who = (options.mode === "squad" ? options.team : options.builderName).trim() || "a builder";
+  const id = shareBuilderId(who, options.team.trim() || "ShipSquad");
+  const cardUrl = buildCardShareUrl(options);
   return [
     "🌴 Built my HH Goa Builder Card!",
     "",
@@ -248,11 +287,23 @@ function buildShareCaption(mode: Mode, builderName: string, team: string) {
     "",
     "Excited to build, ship & connect in Goa 🚀",
     "",
+    "My card:",
+    cardUrl,
+    "",
     "Create yours:",
     SITE_URL,
     "",
     "#FrameInGoa #HHGoa2026",
   ].join("\n");
+}
+
+async function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read card image."));
+    reader.readAsDataURL(blob);
+  });
 }
 
 function drawCoastalId(
@@ -553,6 +604,7 @@ export default function Home() {
   const [socialHandle, setSocialHandle] = useState("");
   const [memberNames, setMemberNames] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState("");
   const [fontsReady, setFontsReady] = useState(false);
@@ -563,6 +615,35 @@ export default function Home() {
 
   useEffect(() => {
     document.fonts.ready.then(() => setFontsReady(true));
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedId = params.get("id");
+    if (!sharedId) return;
+
+    const sharedMode = params.get("m");
+    if (sharedMode === "id" || sharedMode === "pfp" || sharedMode === "squad") setMode(sharedMode);
+
+    const sharedDesign = params.get("d");
+    if (sharedDesign === "coastal" || sharedDesign === "horizon") setIdDesign(sharedDesign);
+
+    const sharedName = params.get("n");
+    if (sharedName) setName(sharedName);
+
+    const sharedTeam = params.get("t");
+    if (sharedTeam) setTeamName(sharedTeam);
+
+    const sharedStack = params.get("s");
+    if (sharedStack) setStack(sharedStack);
+
+    const sharedHandle = params.get("h");
+    if (sharedHandle) setSocialHandle(sharedHandle);
+
+    const sharedMembers = params.get("members");
+    if (sharedMembers) setMemberNames(sharedMembers);
+
+    setNotice(`Shared Builder ID #${sharedId} loaded. Add a photo to finish this frame.`);
   }, []);
 
   useEffect(() => {
@@ -854,20 +935,66 @@ export default function Home() {
     setNotice("Your frame is downloaded. Goa looks good on you.");
   }
 
-  function share() {
+  async function share() {
     if (!requireDetails()) return;
-    const text = buildShareCaption(mode, name || "Your Name", teamName || "The Ship Squad");
-    const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
 
-    const xLink = document.createElement("a");
-    xLink.href = xUrl;
-    xLink.target = "_blank";
-    xLink.rel = "noopener noreferrer";
-    document.body.appendChild(xLink);
-    xLink.click();
-    xLink.remove();
+    // Open during the click so the tab is not blocked after the upload await.
+    const popup = window.open("about:blank", "_blank");
+    setSharing(true);
+    setNotice("Publishing your card link…");
 
-    setNotice("X is open with your draft. Attach your frame from Download PNG if you want.");
+    try {
+      const blob = await canvasBlob();
+      const who = (mode === "squad" ? teamName : name).trim() || "a builder";
+      const id = shareBuilderId(who, teamName.trim() || "ShipSquad").replace(/^#/, "");
+
+      try {
+        const dataUrl = await blobToDataUrl(blob);
+        window.localStorage.setItem(`hh-goa-card:${id}`, dataUrl);
+      } catch {
+        // localStorage may be full or blocked; remote upload still powers the public link.
+      }
+
+      const form = new FormData();
+      form.append("file", blob, `hh-goa-${id}.png`);
+      const response = await fetch("/api/share-card", { method: "POST", body: form });
+      const payload = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.error || "Could not publish your card link.");
+      }
+
+      const text = buildShareCaption({
+        mode,
+        idDesign,
+        builderName: name || "Your Name",
+        team: teamName || "The Ship Squad",
+        stack: stack || "Design + Code",
+        socialHandle,
+        memberNames,
+        imageUrl: payload.url,
+      });
+      const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+
+      if (popup) {
+        popup.location.href = xUrl;
+      } else {
+        const xLink = document.createElement("a");
+        xLink.href = xUrl;
+        xLink.target = "_blank";
+        xLink.rel = "noopener noreferrer";
+        document.body.appendChild(xLink);
+        xLink.click();
+        xLink.remove();
+      }
+
+      setNotice("X is open with your draft — card link opens your generated ID.");
+    } catch (error) {
+      if (popup) popup.close();
+      setPopupMessage(error instanceof Error ? error.message : "Could not publish your card link. Try again.");
+      setNotice("");
+    } finally {
+      setSharing(false);
+    }
   }
 
   function onDrop(event: DragEvent<HTMLButtonElement>) {
@@ -1035,7 +1162,9 @@ export default function Home() {
           <div className={`canvas-shell ${mode === "id" ? "landscape" : ""}`}><canvas ref={canvasRef} aria-label="Your generated HH Goa frame preview" /></div>
           <div className="actions">
             <button className="download" type="button" onClick={() => void download()}><span>↓</span> Download PNG</button>
-            <button className="share" type="button" onClick={() => share()}><span>𝕏</span> Share to X</button>
+            <button className="share" type="button" onClick={() => void share()} disabled={sharing}>
+              <span>𝕏</span> {sharing ? "Publishing…" : "Share to X"}
+            </button>
           </div>
           <p className="notice" aria-live="polite">{notice || "One click. One frame. Your shot at the exclusive HH Goa ID."}</p>
         </div>
