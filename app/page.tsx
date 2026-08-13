@@ -279,6 +279,7 @@ function buildShareCaption(options: {
   const who = (options.mode === "squad" ? options.team : options.builderName).trim() || "a builder";
   const id = shareBuilderId(who, options.team.trim() || "ShipSquad");
   const cardUrl = buildCardShareUrl(options);
+  // Put the card URL first so X unfurls the generated ID image (not the homepage OG banner).
   return [
     "🌴 Built my HH Goa Builder Card!",
     "",
@@ -287,11 +288,9 @@ function buildShareCaption(options: {
     "",
     "Excited to build, ship & connect in Goa 🚀",
     "",
-    "My card:",
     cardUrl,
     "",
-    "Create yours:",
-    SITE_URL,
+    `Create yours → ${SITE_URL}`,
     "",
     "#FrameInGoa #HHGoa2026",
   ].join("\n");
@@ -1004,10 +1003,20 @@ export default function Home() {
     const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
 
     try {
-      popup.location.href = xUrl;
+      if (popup && !popup.closed) {
+        popup.location.href = xUrl;
+      } else {
+        const xLink = document.createElement("a");
+        xLink.href = xUrl;
+        xLink.target = "_blank";
+        xLink.rel = "noopener noreferrer";
+        document.body.appendChild(xLink);
+        xLink.click();
+        xLink.remove();
+      }
       setNotice(
         imageUrl
-          ? "X is open with your draft — card link opens your generated ID."
+          ? "X is open with your draft — preview uses your generated ID card."
           : "X is open with your draft. Card image hosting was skipped; the link still works on this device.",
       );
     } catch {
