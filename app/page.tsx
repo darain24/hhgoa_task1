@@ -1072,14 +1072,19 @@ export default function Home() {
       </section>
 
       {popupMessage && (
-        <div className="popup-backdrop" role="presentation" onClick={() => setPopupMessage("")}>
+        <div
+          className="popup-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setPopupMessage("");
+          }}
+        >
           <div
             className="popup-card"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="details-popup-title"
             aria-describedby="details-popup-message"
-            onClick={(event) => event.stopPropagation()}
           >
             <p id="details-popup-title">Fill your details first</p>
             <p id="details-popup-message">{popupMessage}</p>
