@@ -29,7 +29,8 @@ const MONO_FONT = '"Victor Mono", monospace';
 const ID_W = 1600;
 const ID_H = 1000;
 const SQ = 1080;
-const SQUAD_SIZE = 3;
+const SQUAD_MAX = 3;
+type SquadCount = 2 | 3;
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const radius = Math.min(r, w / 2, h / 2);
@@ -227,8 +228,6 @@ function formatHandle(value: string) {
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 }
 
-const SITE_URL = "https://hhgoa-task1-xi.vercel.app/";
-
 function shareBuilderId(builderName: string, team: string) {
   const seed = `${builderName.trim().toLowerCase()}|${team.trim().toLowerCase()}`;
   let hash = 7;
@@ -238,48 +237,10 @@ function shareBuilderId(builderName: string, team: string) {
   return `#HH-GOA-${teamSlug}-${code}`;
 }
 
-function buildCardShareUrl(options: {
-  mode: Mode;
-  idDesign: IdDesign;
-  builderName: string;
-  team: string;
-  stack: string;
-  socialHandle?: string;
-  memberNames?: string;
-  imageUrl?: string;
-}) {
-  const who = (options.mode === "squad" ? options.team : options.builderName).trim() || "a builder";
-  const id = shareBuilderId(who, options.team.trim() || "ShipSquad").replace(/^#/, "");
-  const params = new URLSearchParams();
-  params.set("id", id);
-  if (options.imageUrl) params.set("img", options.imageUrl);
-  params.set("m", options.mode);
-  if (options.mode === "id") params.set("d", options.idDesign);
-  if (options.builderName.trim()) params.set("n", options.builderName.trim());
-  if (options.team.trim()) params.set("t", options.team.trim());
-  if (options.stack.trim()) params.set("s", options.stack.trim());
-  const handle = options.socialHandle?.trim().replace(/^@/, "");
-  if (handle) params.set("h", handle);
-  if (options.mode === "squad" && options.memberNames?.trim()) {
-    params.set("members", options.memberNames.trim());
-  }
-  return `${SITE_URL}card?${params.toString()}`;
-}
-
-function buildShareCaption(options: {
-  mode: Mode;
-  idDesign: IdDesign;
-  builderName: string;
-  team: string;
-  stack: string;
-  socialHandle?: string;
-  memberNames?: string;
-  imageUrl?: string;
-}) {
-  const who = (options.mode === "squad" ? options.team : options.builderName).trim() || "a builder";
-  const id = shareBuilderId(who, options.team.trim() || "ShipSquad");
-  const cardUrl = buildCardShareUrl(options);
-  // Put the card URL first so X unfurls the generated ID image (not the homepage OG banner).
+function buildShareCaption(mode: Mode, builderName: string, team: string) {
+  const SITE_URL = "https://hhgoa-task1-xi.vercel.app/";
+  const who = (mode === "squad" ? team : builderName).trim() || "a builder";
+  const id = shareBuilderId(who, team.trim() || "ShipSquad");
   return [
     "🌴 Built my HH Goa Builder Card!",
     "",
@@ -288,21 +249,11 @@ function buildShareCaption(options: {
     "",
     "Excited to build, ship & connect in Goa 🚀",
     "",
-    cardUrl,
-    "",
-    `Create yours → ${SITE_URL}`,
+    "Create yours:",
+    SITE_URL,
     "",
     "#FrameInGoa #HHGoa2026",
   ].join("\n");
-}
-
-async function blobToDataUrl(blob: Blob) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read card image."));
-    reader.readAsDataURL(blob);
-  });
 }
 
 function drawCoastalId(
@@ -590,51 +541,22 @@ function drawHorizonId(
   ctx.fillText("VALID FOR ONE UNFORGETTABLE BUILD", ID_W - 56, 968);
 }
 
-function readSharedLaunch() {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
-  const sharedId = params.get("id");
-  if (!sharedId) return null;
-
-  const sharedMode = params.get("m");
-  const mode: Mode | null =
-    sharedMode === "id" || sharedMode === "pfp" || sharedMode === "squad" ? sharedMode : null;
-
-  const sharedDesign = params.get("d");
-  const idDesign: IdDesign | null =
-    sharedDesign === "coastal" || sharedDesign === "horizon" ? sharedDesign : null;
-
-  return {
-    sharedId,
-    mode,
-    idDesign,
-    name: params.get("n") || "",
-    teamName: params.get("t") || "",
-    stack: params.get("s") || "",
-    socialHandle: params.get("h") || "",
-    memberNames: params.get("members") || "",
-  };
-}
-
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadSlotRef = useRef<number | null>(null);
-  const [sharedLaunch] = useState(readSharedLaunch);
-  const [mode, setMode] = useState<Mode>(() => sharedLaunch?.mode ?? "id");
-  const [idDesign, setIdDesign] = useState<IdDesign>(() => sharedLaunch?.idDesign ?? "coastal");
+  const [mode, setMode] = useState<Mode>("id");
+  const [idDesign, setIdDesign] = useState<IdDesign>("coastal");
+  const [squadCount, setSquadCount] = useState<SquadCount>(3);
   const [photos, setPhotos] = useState<Array<Photo | null>>([]);
-  const [name, setName] = useState(() => sharedLaunch?.name ?? "");
-  const [stack, setStack] = useState(() => sharedLaunch?.stack ?? "");
-  const [teamName, setTeamName] = useState(() => sharedLaunch?.teamName ?? "");
-  const [socialHandle, setSocialHandle] = useState(() => sharedLaunch?.socialHandle ?? "");
-  const [memberNames, setMemberNames] = useState(() => sharedLaunch?.memberNames ?? "");
+  const [name, setName] = useState("");
+  const [stack, setStack] = useState("");
+  const [teamName, setTeamName] = useState("");
+  const [socialHandle, setSocialHandle] = useState("");
+  const [memberNames, setMemberNames] = useState("");
   const [busy, setBusy] = useState(false);
-  const [sharing, setSharing] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [notice, setNotice] = useState(() =>
-    sharedLaunch ? `Shared Builder ID #${sharedLaunch.sharedId} loaded. Add a photo to finish this frame.` : "",
-  );
+  const [notice, setNotice] = useState("");
   const [fontsReady, setFontsReady] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
 
@@ -732,19 +654,19 @@ export default function Home() {
       ctx.fillStyle = COLORS.ink;
       ctx.textAlign = "right";
       ctx.font = `700 24px ${MONO_FONT}`;
-      ctx.fillText("3 MINDS. 1 FRAME.", 1034, 86);
+      ctx.fillText(`${squadCount} MINDS. 1 FRAME.`, 1034, 86);
       ctx.textAlign = "left";
 
-      // Three equal portrait panels — best fit for a 3-person squad on a square frame.
-      const displayPhotos = photos.slice(0, SQUAD_SIZE);
+      // Equal portrait panels sized for the selected squad count.
+      const displayPhotos = photos.slice(0, squadCount);
       const names = memberNames.split(",").map((item) => item.trim()).filter(Boolean);
-      const gap = 16;
-      const sidePad = 42;
-      const tileW = Math.floor((SQ - sidePad * 2 - gap * (SQUAD_SIZE - 1)) / SQUAD_SIZE);
+      const gap = squadCount === 2 ? 22 : 16;
+      const sidePad = squadCount === 2 ? 54 : 42;
+      const tileW = Math.floor((SQ - sidePad * 2 - gap * (squadCount - 1)) / squadCount);
       const tileH = 740;
       const tileY = 178;
       const accents = [COLORS.pink, COLORS.orange, COLORS.cyan];
-      for (let i = 0; i < SQUAD_SIZE; i++) {
+      for (let i = 0; i < squadCount; i++) {
         const x = sidePad + i * (tileW + gap);
         const y = tileY;
         ctx.save();
@@ -777,7 +699,7 @@ export default function Home() {
       ctx.font = `700 26px ${MONO_FONT}`;
       ctx.fillText("WE CAME TO GOA TO SHIP  •  #FRAMEINGOA", 540, 992);
     }
-  }, [mode, idDesign, photos, name, stack, teamName, memberNames, displayHandle, fontsReady]);
+  }, [mode, idDesign, photos, name, stack, teamName, memberNames, displayHandle, fontsReady, squadCount]);
 
   async function fileToPhoto(file: File): Promise<Photo> {
     let source: Blob = file;
@@ -812,7 +734,7 @@ export default function Home() {
   }
 
   async function addFiles(files: FileList | File[], requestedSlot: number | null = null) {
-    const selected = Array.from(files).slice(0, mode === "squad" ? SQUAD_SIZE : 1);
+    const selected = Array.from(files).slice(0, mode === "squad" ? squadCount : 1);
     if (!selected.length) return;
     setBusy(true);
     setNotice("");
@@ -826,16 +748,16 @@ export default function Home() {
         });
       } else {
         setPhotos((current) => {
-          const next: Array<Photo | null> = Array.from({ length: SQUAD_SIZE }, (_, index) => current[index] ?? null);
+          const next: Array<Photo | null> = Array.from({ length: squadCount }, (_, index) => current[index] ?? null);
           let nextSlot = requestedSlot ?? next.findIndex((photo) => !photo);
           if (nextSlot < 0) nextSlot = 0;
           loaded.forEach((photo) => {
-            if (nextSlot >= SQUAD_SIZE) return;
+            if (nextSlot >= squadCount) return;
             const replaced = next[nextSlot];
             if (replaced) URL.revokeObjectURL(replaced.image.src);
             next[nextSlot] = photo;
             const followingEmpty = next.findIndex((item, index) => index > nextSlot && !item);
-            nextSlot = followingEmpty >= 0 ? followingEmpty : SQUAD_SIZE;
+            nextSlot = followingEmpty >= 0 ? followingEmpty : squadCount;
           });
           return next;
         });
@@ -852,7 +774,19 @@ export default function Home() {
     setPhotos([]);
     setNotice("");
     uploadSlotRef.current = null;
+    if (next === "squad") setSquadCount(3);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function changeSquadCount(next: SquadCount) {
+    setSquadCount(next);
+    setPhotos((current) => {
+      current.slice(next).forEach((photo) => {
+        if (photo) URL.revokeObjectURL(photo.image.src);
+      });
+      return current.slice(0, next);
+    });
+    setNotice(next === 2 ? "Squad set to 2 frames." : "Squad set to 3 frames.");
   }
 
   function chooseSquadSlot(slot: number) {
@@ -903,7 +837,8 @@ export default function Home() {
 
   function missingDetailsMessage() {
     if (mode === "squad") {
-      if (!photos.some(Boolean)) return "Upload at least one squad photo before continuing.";
+      const filled = photos.filter(Boolean).length;
+      if (filled < squadCount) return `Upload all ${squadCount} squad photos before continuing.`;
       if (!teamName.trim()) return "Enter your squad name before continuing.";
       if (!memberNames.trim()) return "Add member names before continuing.";
       return "";
@@ -934,98 +869,20 @@ export default function Home() {
     setNotice("Your frame is downloaded. Goa looks good on you.");
   }
 
-  async function share() {
+  function share() {
     if (!requireDetails()) return;
-
-    // Keep a real window handle from the user gesture. Do not use "noopener" here —
-    // it makes window.open() return null, so X can never be redirected after upload.
-    const popup = window.open("about:blank", "_blank");
-    if (!popup) {
-      setPopupMessage("Your browser blocked the X window. Allow popups for this site, then try Share to X again.");
-      return;
-    }
-
-    try {
-      popup.document.write(
-        "<!doctype html><title>Sharing…</title><body style=\"margin:0;min-height:100vh;display:grid;place-items:center;background:#fffbe8;color:#0b6839;font-family:monospace;padding:24px;text-align:center\"><div><p style=\"font-size:18px;font-weight:700\">Publishing your HH Goa card…</p><p>X will open next.</p></div></body>",
-      );
-      popup.document.close();
-    } catch {
-      // Some browsers lock document writes; redirect still works afterward.
-    }
-
-    setSharing(true);
-    setNotice("Publishing your card link…");
-
-    const shareOptions = {
-      mode,
-      idDesign,
-      builderName: name || "Your Name",
-      team: teamName || "The Ship Squad",
-      stack: stack || "Design + Code",
-      socialHandle,
-      memberNames,
-    };
-
-    let imageUrl: string | undefined;
-    try {
-      const blob = await canvasBlob();
-      const who = (mode === "squad" ? teamName : name).trim() || "a builder";
-      const id = shareBuilderId(who, teamName.trim() || "ShipSquad").replace(/^#/, "");
-
-      try {
-        const dataUrl = await blobToDataUrl(blob);
-        window.localStorage.setItem(`hh-goa-card:${id}`, dataUrl);
-      } catch {
-        // localStorage may be full or blocked.
-      }
-
-      const form = new FormData();
-      form.append("file", blob, `hh-goa-${id}.png`);
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 12000);
-      try {
-        const response = await fetch("/api/share-card", {
-          method: "POST",
-          body: form,
-          signal: controller.signal,
-        });
-        const payload = (await response.json()) as { url?: string };
-        if (response.ok && payload.url) imageUrl = payload.url;
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    } catch {
-      // Still open X even if publishing the image fails.
-    }
-
-    const text = buildShareCaption({ ...shareOptions, imageUrl });
+    const text = buildShareCaption(mode, name || "Your Name", teamName || "The Ship Squad");
     const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
 
-    try {
-      if (popup && !popup.closed) {
-        popup.location.href = xUrl;
-      } else {
-        const xLink = document.createElement("a");
-        xLink.href = xUrl;
-        xLink.target = "_blank";
-        xLink.rel = "noopener noreferrer";
-        document.body.appendChild(xLink);
-        xLink.click();
-        xLink.remove();
-      }
-      setNotice(
-        imageUrl
-          ? "X is open with your draft — preview uses your generated ID card."
-          : "X is open with your draft. Card image hosting was skipped; the link still works on this device.",
-      );
-    } catch {
-      popup.close();
-      setPopupMessage("Could not open X. Allow popups and try again.");
-      setNotice("");
-    } finally {
-      setSharing(false);
-    }
+    const xLink = document.createElement("a");
+    xLink.href = xUrl;
+    xLink.target = "_blank";
+    xLink.rel = "noopener noreferrer";
+    document.body.appendChild(xLink);
+    xLink.click();
+    xLink.remove();
+
+    setNotice("X is open with your draft. Attach your frame from Download PNG if you want.");
   }
 
   function onDrop(event: DragEvent<HTMLButtonElement>) {
@@ -1090,10 +947,25 @@ export default function Home() {
             </label>
           )}
 
-          <div className="step-heading second"><span>02</span><div><small>ADD THE HUMANS</small><strong>{mode === "squad" ? "Upload up to three photos" : "Drop in your best photo"}</strong></div></div>
+          {mode === "squad" && (
+            <label className="design-picker">
+              <span>Squad frames</span>
+              <select
+                value={squadCount}
+                onChange={(event) => changeSquadCount(Number(event.target.value) as SquadCount)}
+                aria-label="Choose number of squad photo frames"
+              >
+                <option value={2}>2 teammates</option>
+                <option value={3}>3 teammates</option>
+              </select>
+              <small>Max {SQUAD_MAX} · pick only the frames you need</small>
+            </label>
+          )}
+
+          <div className="step-heading second"><span>02</span><div><small>ADD THE HUMANS</small><strong>{mode === "squad" ? `Upload ${squadCount} photos` : "Drop in your best photo"}</strong></div></div>
           {mode === "squad" ? (
-            <div className="squad-slots" aria-label="Squad photo slots">
-              {Array.from({ length: SQUAD_SIZE }, (_, slot) => {
+            <div className="squad-slots" style={{ gridTemplateColumns: `repeat(${squadCount}, minmax(0, 1fr))` }} aria-label="Squad photo slots">
+              {Array.from({ length: squadCount }, (_, slot) => {
                 const photo = photos[slot];
                 return (
                   <div className={`squad-slot ${photo ? "filled" : ""}`} key={slot}>
@@ -1111,10 +983,10 @@ export default function Home() {
                   </div>
                 );
               })}
-              <p>{busy ? "Adding your builder…" : `${photos.filter(Boolean).length}/${SQUAD_SIZE} frames filled • choose any frame`}</p>
-              {photos.filter(Boolean).length < SQUAD_SIZE && (
+              <p>{busy ? "Adding your builder…" : `${photos.filter(Boolean).length}/${squadCount} frames filled • choose any frame`}</p>
+              {photos.filter(Boolean).length < squadCount && (
                 <button type="button" className="next-upload" onClick={() => {
-                  const nextEmpty = Array.from({ length: SQUAD_SIZE }, (_, index) => photos[index] ?? null).findIndex((photo) => !photo);
+                  const nextEmpty = Array.from({ length: squadCount }, (_, index) => photos[index] ?? null).findIndex((photo) => !photo);
                   chooseSquadSlot(nextEmpty >= 0 ? nextEmpty : 0);
                 }}>
                   + Add photo to next empty frame
@@ -1193,28 +1065,21 @@ export default function Home() {
           <div className={`canvas-shell ${mode === "id" ? "landscape" : ""}`}><canvas ref={canvasRef} aria-label="Your generated HH Goa frame preview" /></div>
           <div className="actions">
             <button className="download" type="button" onClick={() => void download()}><span>↓</span> Download PNG</button>
-            <button className="share" type="button" onClick={() => void share()} disabled={sharing}>
-              <span>𝕏</span> {sharing ? "Publishing…" : "Share to X"}
-            </button>
+            <button className="share" type="button" onClick={() => share()}><span>𝕏</span> Share to X</button>
           </div>
           <p className="notice" aria-live="polite">{notice || "One click. One frame. Your shot at the exclusive HH Goa ID."}</p>
         </div>
       </section>
 
       {popupMessage && (
-        <div className="popup-backdrop">
-          <button
-            type="button"
-            className="popup-backdrop-dismiss"
-            aria-label="Close dialog"
-            onClick={() => setPopupMessage("")}
-          />
+        <div className="popup-backdrop" role="presentation" onClick={() => setPopupMessage("")}>
           <div
             className="popup-card"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="details-popup-title"
             aria-describedby="details-popup-message"
+            onClick={(event) => event.stopPropagation()}
           >
             <p id="details-popup-title">Fill your details first</p>
             <p id="details-popup-message">{popupMessage}</p>

@@ -1,73 +1,97 @@
 # Frame in Goa — HH Goa 2026 Builder Frames
 
-Turn any photo into a personalized **Hackers House Goa 2026** builder badge — no signup, no server upload, just create, download, and share.
+Turn any photo into a personalized **Hackers House Goa 2026** builder badge in seconds.
 
 **Live site:** [https://hhgoa-task1-xi.vercel.app/](https://hhgoa-task1-xi.vercel.app/)
 
+No signup. No crop anxiety. Upload a photo, fill in your details, download a PNG, or share a pre-filled post on X.
+
 ---
 
-## What it is
+## What it does
 
-Frame in Goa is a browser-based frame generator for builders attending (or hyping) **HH Goa 2026**. You upload a photo, add your details, pick a design, and export a share-ready PNG — or post straight to X with a pre-filled caption that promotes the app.
+**Frame in Goa** is a client-side frame generator for HH Goa 2026. Everything runs in the browser — photos never leave the user’s device.
 
-Everything runs **client-side**. Photos never leave the browser.
+Builders can create:
+
+| Format | Output size | Description |
+| --- | --- | --- |
+| **Builder ID** | `1600 × 1000` landscape | Full event ID card with photo, name, stack, team, and optional social handle |
+| **PFP Frame** | `1080 × 1080` square | Profile-picture style frame with name, stack/role, team, and optional social |
+| **Squad Frame** | `1080 × 1080` square | Triptych for up to **3** teammates |
 
 ---
 
 ## Features
 
-### Frame formats
-
-| Format | Output | Description |
-| --- | --- | --- |
-| **Builder ID** | `1600 × 1000` PNG | Landscape ID card with photo, name, stack, team, and optional social handle |
-| **PFP Frame** | `1080 × 1080` PNG | Square profile-style frame with name, stack, team, and optional social |
-| **Squad Frame** | `1080 × 1080` PNG | Triptych for up to **3** teammates |
-
 ### Builder ID designs
 
-Choose from two card designs in the dropdown:
+Choose from two themed layouts:
 
-1. **Coastal Classic** — Cream badge, hibiscus corners, stamp seal, green / yellow / pink HH Goa palette  
-2. **Goa Horizon** — Sunset header band, open cream layout, clear typography, dark footer strip  
+1. **Coastal Classic** — cream badge, hibiscus corners, stamp seal  
+2. **Goa Horizon** — sunset header band, open cream body, clear typography  
 
 ### Personalization
 
-- Photo upload (JPG, PNG, WebP, iPhone **HEIC/HEIF**)
-- Smart face-aware crop when the browser supports `FaceDetector`
-- Name, stack / role, and team name
-- Optional social handle (shown on Builder ID + PFP when provided; `@` added automatically if missing)
-- Live canvas preview as you type
+- Upload JPG, PNG, WebP, or iPhone **HEIC/HEIF** photos  
+- Smart face-aware crop when the browser supports `FaceDetector`  
+- Fields: name, stack/role, team name  
+- Optional social handle (shown on Builder ID and PFP when provided)  
+- Live canvas preview updates as you type  
 
 ### Export & share
 
-- **Download PNG** — saves the current frame locally  
-- **Share to X** — opens a short pre-filled post with:
+- **Download PNG** — exports the current frame  
+- **Share to X** — opens X with a short drafted post including:
   - Builder name  
-  - Generated builder ID (includes team slug + code), e.g. `#HH-GOA-SHIPSQUA-4821`  
-  - Live app link: `https://hhgoa-task1-xi.vercel.app/`  
-  - `#FrameInGoa` `#HHGoa2026`  
-- Share does **not** auto-download the image (download separately if you want to attach the PNG)
+  - Generated Builder ID (`#HH-GOA-{TEAM}-{code}`)  
+  - Live site link  
+  - `#FrameInGoa` / `#HHGoa2026`  
+- Share does **not** auto-download the image  
 
 ### Validation
 
-If you click **Download PNG** or **Share to X** without required details, a popup asks you to finish first. No download or share runs until:
+Download and Share require details first. If something is missing, a popup appears and no action runs.
 
-- **Builder ID / PFP:** photo, name, stack / role, and team name  
-- **Squad:** at least one photo, squad name, and member names  
+**Builder ID / PFP require:** photo, name, stack/role, team name  
 
-Social handle remains optional.
+**Squad requires:** at least one photo, squad name, member names  
+
+Social handle is always optional.
 
 ---
 
 ## Tech stack
 
-- **Next.js** (App Router) + **React 19** + **TypeScript**
-- **Canvas 2D** for all frame rendering and PNG export
-- **Tailwind CSS v4** (utility import) + custom CSS in `app/globals.css`
-- **Google Fonts:** Imbue (display) + Victor Mono (UI / labels)
-- **heic2any** for HEIC → JPEG conversion in the browser
-- Deployed on **Vercel** (`vercel.json` locks framework to Next.js)
+- [Next.js](https://nextjs.org/) (App Router)  
+- React 19 + TypeScript  
+- Tailwind CSS v4 (PostCSS)  
+- Canvas 2D for frame rendering  
+- [heic2any](https://github.com/alexcorvi/heic2any) for HEIC conversion  
+- Google fonts: **Imbue** + **Victor Mono**  
+- Deployed on [Vercel](https://vercel.com/)  
+
+---
+
+## Project structure
+
+```text
+hhgoa_task1/
+├── app/
+│   ├── layout.tsx      # Root layout, fonts, metadata / OG
+│   ├── page.tsx        # Generator UI + canvas drawing
+│   └── globals.css     # Theme, layout, floral accents, popup
+├── types/
+│   └── heic2any.d.ts
+├── tests/
+│   └── project.test.mjs
+├── public/             # favicon, OG image assets (as present)
+├── next.config.ts
+├── vercel.json
+└── package.json
+```
+
+Almost all product logic lives in `app/page.tsx` (modes, designs, canvas drawing, download/share, validation).
 
 ---
 
@@ -75,8 +99,8 @@ Social handle remains optional.
 
 ### Requirements
 
-- Node.js **20.9+**
-- npm
+- **Node.js 20.9+**  
+- npm (comes with Node)
 
 ### Install & run
 
@@ -94,113 +118,81 @@ npm run build
 npm start
 ```
 
-### Checks
+---
 
-```bash
-npm test      # project capability / structure tests
-npm run lint  # ESLint
-npm run build # production compile
-```
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start local development server |
+| `npm run build` | Create production build |
+| `npm start` | Serve the production build |
+| `npm test` | Run project capability / structure tests |
+| `npm run lint` | Run ESLint |
 
 ---
 
-## How to use
+## How to use the site
 
-1. Pick a format: **Builder ID**, **PFP Frame**, or **Squad Frame**.  
-2. For Builder ID, choose **Coastal Classic** or **Goa Horizon**.  
-3. Upload your photo (or up to three for Squad).  
-4. Fill in your details. Social handle is optional.  
-5. Preview updates live.  
-6. **Download PNG** and/or **Share to X**.  
-7. If sharing, attach the downloaded PNG to the X draft if you want the image in the post.
-
----
-
-## Project structure
-
-```text
-hhgoa_task1/
-├── app/
-│   ├── layout.tsx      # Fonts, metadata, Open Graph
-│   ├── page.tsx        # Generator UI + canvas drawing + share logic
-│   └── globals.css     # Theme, layout, floral accents, popup styles
-├── tests/
-│   └── project.test.mjs
-├── types/
-│   └── heic2any.d.ts
-├── public/             # Static assets (favicon, OG image, etc.)
-├── package.json
-├── next.config.ts
-├── vercel.json
-└── README.md
-```
-
-Most product logic lives in `app/page.tsx` (modes, designs, canvas draw functions, validation, X share caption).
-
----
-
-## Brand & design notes
-
-Palette used across UI and cards:
-
-| Token | Hex | Role |
-| --- | --- | --- |
-| Ink / green | `#0b6839` | Headers, text, borders |
-| Cream | `#fffbe8` | Backgrounds |
-| Yellow | `#fee101` | Accents, stamps |
-| Pink | `#ff0080` | Highlights, badges |
-
-The site includes light floral / leaf decorations to match the Goa beach + builder theme without cluttering the first viewport or the card content.
+1. Pick a format: **Builder ID**, **PFP Frame**, or **Squad Frame**  
+2. For Builder ID, choose **Coastal Classic** or **Goa Horizon**  
+3. Upload a photo (or up to three for Squad)  
+4. Fill required details  
+5. Preview the live canvas  
+6. **Download PNG**, or **Share to X** for a ready draft  
 
 ---
 
 ## Privacy
 
-- Photos are processed only in the browser (canvas + optional local HEIC conversion).  
-- Nothing is uploaded to a backend for frame generation.  
-- Clearing or leaving the page discards in-memory / blob URLs for uploaded images.
+- Photo processing and PNG export happen **entirely in the browser**  
+- Uploaded images are **not** uploaded to a backend for generation  
+- HEIC conversion also runs client-side via `heic2any`  
 
 ---
 
-## Deploy to Vercel
+## Deploy on Vercel
 
-1. Import this repository into Vercel.  
-2. Framework should detect as **Next.js** (`vercel.json` sets `"framework": "nextjs"`).  
-3. No environment variables are required for the generator.  
-4. Build command: `npm run build` (default / as in `vercel.json`).
+1. Import this repository into Vercel  
+2. Framework should detect as **Next.js**  
+3. No environment variables are required for the core generator  
 
-If the project previously used another framework:
+If reusing an old Vercel project from another framework:
 
 - Set **Root Directory** to `./`  
-- Clear custom **Build Command** / **Output Directory** overrides so Next.js manages output  
+- Clear custom Build Command / Output Directory overrides  
 
-Current production URL:
+`vercel.json` pins Next.js and keeps the framework-managed output directory.
 
-[https://hhgoa-task1-xi.vercel.app/](https://hhgoa-task1-xi.vercel.app/)
-
----
-
-## Scripts reference
-
-| Script | Purpose |
-| --- | --- |
-| `npm run dev` | Local development server |
-| `npm run build` | Production build |
-| `npm start` | Serve production build |
-| `npm test` | Node test suite for project requirements |
-| `npm run lint` | ESLint |
+**Current deployment:** [https://hhgoa-task1-xi.vercel.app/](https://hhgoa-task1-xi.vercel.app/)
 
 ---
 
-## Hashtags
+## Brand & design notes
 
-When sharing builder frames on X, the app encourages:
+Color system used across the UI and frames:
 
-- `#FrameInGoa`
-- `#HHGoa2026`
+| Token | Hex | Role |
+| --- | --- | --- |
+| Ink / green | `#0b6839` | Headers, borders, primary text |
+| Cream | `#fffbe8` | Backgrounds, card body |
+| Yellow | `#fee101` | Accents, stamps, CTAs |
+| Pink | `#ff0080` | Highlights, badges, shadows |
+
+The site uses tropical / Goa-inspired floral accents while keeping type readable on ID cards.
 
 ---
 
-## License
+## Testing
 
-Private project (`"private": true` in `package.json`). Adjust licensing here if you open-source or redistribute it.
+```bash
+npm test
+```
+
+Tests assert that core capabilities remain present (modes, photo slots, HEIC support, X intent URL, brand colors, Vercel/Next setup).
+
+---
+
+## License / event context
+
+Built for **Hackers House Goa 2026** builders — ship, share, and frame your Goa story with `#FrameInGoa`.
