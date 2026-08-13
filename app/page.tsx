@@ -938,11 +938,37 @@ export default function Home() {
   async function share() {
     if (!requireDetails()) return;
 
-    // Open during the click so the tab is not blocked after the upload await.
+    // Keep a real window handle from the user gesture. Do not use "noopener" here —
+    // it makes window.open() return null, so X can never be redirected after upload.
     const popup = window.open("about:blank", "_blank");
+    if (!popup) {
+      setPopupMessage("Your browser blocked the X window. Allow popups for this site, then try Share to X again.");
+      return;
+    }
+
+    try {
+      popup.document.write(
+        "<!doctype html><title>Sharing…</title><body style=\"margin:0;min-height:100vh;display:grid;place-items:center;background:#fffbe8;color:#0b6839;font-family:monospace;padding:24px;text-align:center\"><div><p style=\"font-size:18px;font-weight:700\">Publishing your HH Goa card…</p><p>X will open next.</p></div></body>",
+      );
+      popup.document.close();
+    } catch {
+      // Some browsers lock document writes; redirect still works afterward.
+    }
+
     setSharing(true);
     setNotice("Publishing your card link…");
 
+    const shareOptions = {
+      mode,
+      idDesign,
+      builderName: name || "Your Name",
+      team: teamName || "The Ship Squad",
+      stack: stack || "Design + Code",
+      socialHandle,
+      memberNames,
+    };
+
+    let imageUrl: string | undefined;
     try {
       const blob = await canvasBlob();
       const who = (mode === "squad" ? teamName : name).trim() || "a builder";
@@ -952,45 +978,41 @@ export default function Home() {
         const dataUrl = await blobToDataUrl(blob);
         window.localStorage.setItem(`hh-goa-card:${id}`, dataUrl);
       } catch {
-        // localStorage may be full or blocked; remote upload still powers the public link.
+        // localStorage may be full or blocked.
       }
 
       const form = new FormData();
       form.append("file", blob, `hh-goa-${id}.png`);
-      const response = await fetch("/api/share-card", { method: "POST", body: form });
-      const payload = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !payload.url) {
-        throw new Error(payload.error || "Could not publish your card link.");
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 12000);
+      try {
+        const response = await fetch("/api/share-card", {
+          method: "POST",
+          body: form,
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as { url?: string };
+        if (response.ok && payload.url) imageUrl = payload.url;
+      } finally {
+        window.clearTimeout(timeout);
       }
+    } catch {
+      // Still open X even if publishing the image fails.
+    }
 
-      const text = buildShareCaption({
-        mode,
-        idDesign,
-        builderName: name || "Your Name",
-        team: teamName || "The Ship Squad",
-        stack: stack || "Design + Code",
-        socialHandle,
-        memberNames,
-        imageUrl: payload.url,
-      });
-      const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+    const text = buildShareCaption({ ...shareOptions, imageUrl });
+    const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
 
-      if (popup) {
-        popup.location.href = xUrl;
-      } else {
-        const xLink = document.createElement("a");
-        xLink.href = xUrl;
-        xLink.target = "_blank";
-        xLink.rel = "noopener noreferrer";
-        document.body.appendChild(xLink);
-        xLink.click();
-        xLink.remove();
-      }
-
-      setNotice("X is open with your draft — card link opens your generated ID.");
-    } catch (error) {
-      if (popup) popup.close();
-      setPopupMessage(error instanceof Error ? error.message : "Could not publish your card link. Try again.");
+    try {
+      popup.location.href = xUrl;
+      setNotice(
+        imageUrl
+          ? "X is open with your draft — card link opens your generated ID."
+          : "X is open with your draft. Card image hosting was skipped; the link still works on this device.",
+      );
+    } catch {
+      popup.close();
+      setPopupMessage("Could not open X. Allow popups and try again.");
       setNotice("");
     } finally {
       setSharing(false);
